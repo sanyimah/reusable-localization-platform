@@ -36,11 +36,11 @@ Options:
   --json <file>     Write a JSON report
   --list            (scan) Print every discovered key
   --verbose         Don't truncate long lists
-    --locations       (scan --list) Show file:line for each key
+  --locations       (scan --list) Show file:line for each key
   --filter <text>   (scan --list) Only keys containing text
 `;
 
-const TEMPLATE = `import { defineConfig } from "@yourorg/i18n-keys";
+const TEMPLATE = `import { defineConfig, parseExisting } from "@sanyimah/i18n-keys";";
 
 export default defineConfig({
   appId: "your-app-id",
@@ -54,9 +54,7 @@ export default defineConfig({
 
     // Tell the toolkit how YOUR API looks. Fill these in after checking the real contract.
     // GET /api/GetTranslations/{appId}  ->  return a flat string[] of existing keys
-    parseExisting: (body) => {
-      throw new Error("TODO: implement parseExisting() for your GET response");
-    },
+    parseExisting,
 
     // POST /Generics/TranslationRequests  ->  build the request body for a batch of keys
     buildPayload: (keys, appId) => {
@@ -242,7 +240,7 @@ async function main(): Promise<number> {
   }
 
   const toSend = missing.slice(0, limit ?? missing.length);
-  if (adapter.previewPayload && toSend.length) {
+  if (apply && adapter.previewPayload && toSend.length) {
     const first = toSend.slice(0, Math.max(adapter.batchSize ?? 1, 1));
     console.log("\nFirst payload that will be sent:");
     console.log(

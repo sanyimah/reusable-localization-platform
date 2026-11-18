@@ -5,4 +5,5 @@ export { diffKeys } from "./differ.js";
 export { registerKeys } from "./registrar.js";
 export { createHttpAdapter } from "./http-adapter.js";
 export { createMockAdapter } from "./mock-adapter.js";
+export {parseExisting} from "./parse.js"
 export type * from "./types.js";

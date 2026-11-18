@@ -3,12 +3,29 @@ import { diffKeys } from "../src/differ.js";
 import { createHttpAdapter } from "../src/http-adapter.js";
 import { registerKeys } from "../src/registrar.js";
 import type { ApiAdapter } from "../src/types.js";
+import {parseExisting} from "../src/parse.js";
 
 describe("differ", () => {
   it("splits discovered keys into existing and missing (case-sensitive)", () => {
     const r = diffKeys(["Save", "Cancel", "save", "Save"], ["Save"]);
     expect(r.existing).toEqual(["Save"]);
     expect(r.missing).toEqual(["Cancel", "save"]);
+  });
+});
+
+describe("parseExisting", () => {
+  it("extracts English keys, including keys with null values", () => {
+    expect(
+      parseExisting({
+        fr: { Save: "Enregistrer" },
+        en: { Save: "Save", "Needs translation": null },
+      }),
+    ).toEqual(["Save", "Needs translation"]);
+  });
+
+  it("throws if the English dictionary is missing", () => {
+    expect(() => parseExisting({ fr: { Save: "Enregistrer" } }))
+      .toThrow('GET response must contain a "en" dictionary.');
   });
 });
 

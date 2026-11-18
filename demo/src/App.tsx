@@ -6,6 +6,9 @@ export function App({ status }: { status: string }) {
   // i18n-keys: "Active", "Inactive"
   const label = t(status);
 
+  // i18n-keys: "Not Found", "Access Denied"
+  const errorText = t(`errors.${status}`);
+
   return (
     <div>
       <h1>{t("Customer Information")}</h1>
@@ -14,6 +17,7 @@ export function App({ status }: { status: string }) {
       <Trans i18nKey="Welcome Back" />
       <span>{i18n.t("Logout")}</span>
       <span>{t(`errors.${status}`)}</span>
+      <span>{errorText}</span>
       {label}
     </div>
   );

@@ -139,3 +139,19 @@ export interface RegisterSummary {
   failed: { key: string; error: string }[];
   skippedByLimit: string[];
 }
+
+export type TranslationsMap = Record<string, Record<string, string>>
+
+export interface RegistrationPayload {
+  appId: string
+  key: string
+  defaultText: string
+  status: 'needs_translation'
+  requestedBy: string
+  createdAt: string
+}
+
+export interface Adapter {
+  loadExisting(appId: string): Promise<TranslationsMap>
+  register(appId: string, keys: string[]): Promise<void>
+}

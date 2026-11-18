@@ -1,26 +1,40 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import type { ApiAdapter } from "./types.js";
+import { parseExisting } from "./parse.js";
 
-/**
- * Local stand-in for your backend: a JSON file `{ "keys": [...] }`.
- * Lets you run the whole pipeline end to end without touching any real API.
- */
+interface MockDb {
+  translations: Record<string, Record<string, string>>;
+  requests: unknown[];
+}
+
 export function createMockAdapter(file: string): ApiAdapter {
-  const read = async (): Promise<string[]> =>
-    existsSync(file) ? ((JSON.parse(await readFile(file, "utf8")) as { keys?: string[] }).keys ?? []) : [];
+  const load = async (): Promise<MockDb> =>
+    existsSync(file)
+      ? JSON.parse(await readFile(file, "utf8"))
+      : { translations: { en: {}, de: {} }, requests: [] };
 
   return {
     batchSize: 1000,
     concurrency: 1,
-    fetchExisting: read,
-    async register(keys) {
-      const current = await read();
-      const set = new Set(current);
-      for (const k of keys) set.add(k);
-      await writeFile(file, JSON.stringify({ keys: [...set].sort() }, null, 2));
-      return { status: "registered" };
+    async fetchExisting() {
+      return parseExisting((await load()).translations);
     },
-    previewPayload: (keys) => ({ mockFile: file, keys }),
+    async register(keys, appId) {
+      const db = await load();
+      let added = 0;
+      for (const key of keys) {
+        if (key in db.translations.en) continue; // already there
+        db.translations.en[key] = key;            // English text = the key
+        db.requests.push({
+          appId, key, defaultText: key, status: "needs_translation",
+          requestedBy: "i18n-keys", createdAt: new Date().toISOString(),
+        });
+        added++;
+      }
+      await writeFile(file, JSON.stringify(db, null, 2));
+      return { status: added > 0 ? "registered" : "duplicate" };
+    },
+    previewPayload: (keys, appId) => ({ appId, keys, defaultText: "same as key" }),
   };
 }
