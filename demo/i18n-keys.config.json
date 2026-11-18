@@ -1,0 +1,5 @@
+{
+  "appId": "demo-app",
+  "include": ["src/**/*.{js,jsx,ts,tsx}"],
+  "dynamicKeys": "warn"
+}

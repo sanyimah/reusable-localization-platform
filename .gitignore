@@ -1,0 +1,5 @@
+node_modules
+dist
+.i18n-keys-mock.json
+i18n-report.json
+*.tgz
