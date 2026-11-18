@@ -1,5 +1,6 @@
 node_modules
 dist
 .i18n-keys-mock.json
+demo/.i18n-test-db.json
 i18n-report.json
 *.tgz

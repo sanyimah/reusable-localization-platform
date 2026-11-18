@@ -10,6 +10,8 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "demo": "npm run build && node demo/test-api.mjs --sync",
+    "demo:sync": "npm run build && cd demo && node ../dist/cli.js sync --apply --yes",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },

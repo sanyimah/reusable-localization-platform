@@ -36,11 +36,11 @@ Options:
   --json <file>     Write a JSON report
   --list            (scan) Print every discovered key
   --verbose         Don't truncate long lists
-    --locations       (scan --list) Show file:line for each key
+  --locations       (scan --list) Show file:line for each key
   --filter <text>   (scan --list) Only keys containing text
 `;
 
-const TEMPLATE = `import { defineConfig } from "@yourorg/i18n-keys";
+const TEMPLATE = `import { defineConfig } from "@sanyimah/i18n-keys";
 
 export default defineConfig({
   appId: "your-app-id",
@@ -50,18 +50,23 @@ export default defineConfig({
 
   api: {
     baseUrl: process.env.I18N_API_URL!,
-    headers: { Authorization: \`Bearer \${process.env.I18N_API_TOKEN}\` },
+    headers: (): Record<string, string> => {
+      const token = process.env.I18N_API_TOKEN;
+      return token ? { Authorization: \`Bearer \${token}\` } : {};
+    },
 
-    // Tell the toolkit how YOUR API looks. Fill these in after checking the real contract.
-    // GET /api/GetTranslations/{appId}  ->  return a flat string[] of existing keys
+    // Example GET response: { "keys": ["Save"] }. Adapt this to your API.
     parseExisting: (body) => {
-      throw new Error("TODO: implement parseExisting() for your GET response");
+      const keys = (body as { keys?: unknown } | null)?.keys;
+      if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) {
+        throw new Error("Expected the GET response to contain a keys array of strings");
+      }
+      return keys;
     },
 
-    // POST /Generics/TranslationRequests  ->  build the request body for a batch of keys
-    buildPayload: (keys, appId) => {
-      throw new Error("TODO: implement buildPayload() for your POST body");
-    },
+    // Example POST body: { "appId": "your-app-id", "keys": ["Save"] }.
+    // Adapt this to your API before running sync --apply.
+    buildPayload: (keys, appId) => ({ appId, keys }),
 
     batchSize: 1,
   },
@@ -224,7 +229,7 @@ async function main(): Promise<number> {
   const apply = !!flags.apply;
   const limit =
     typeof flags.limit === "string" ? Number(flags.limit) : undefined;
-  if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+  if (flags.limit === true || (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 0))) {
     console.error("--limit must be a non-negative integer");
     return 2;
   }

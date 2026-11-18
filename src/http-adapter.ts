@@ -5,9 +5,27 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const joinUrl = (base: string, p: string) => base.replace(/\/+$/, "") + "/" + p.replace(/^\/+/, "");
 
 export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
+  if (!cfg.baseUrl) throw new Error("API configuration requires a baseUrl.");
+  const baseUrl = new URL(cfg.baseUrl);
+  if (!["http:", "https:"].includes(baseUrl.protocol) || baseUrl.search || baseUrl.hash) {
+    throw new Error("API baseUrl must be an HTTP(S) URL without a query or fragment.");
+  }
+
   const retries = cfg.retries ?? 2;
   const delay = cfg.retryDelayMs ?? 500;
   const timeoutMs = cfg.timeoutMs ?? 15_000;
+  const batchSize = cfg.batchSize ?? 1;
+  const concurrency = cfg.concurrency ?? 3;
+
+  for (const [name, value, minimum] of [
+    ["retries", retries, 0],
+    ["batchSize", batchSize, 1],
+    ["concurrency", concurrency, 1],
+  ] as const) {
+    if (!Number.isSafeInteger(value) || value < minimum) {
+      throw new Error(`API ${name} must be an integer greater than or equal to ${minimum}.`);
+    }
+  }
 
   const postPath = (appId: string) =>
     typeof cfg.postUrl === "function" ? cfg.postUrl(appId) : (cfg.postUrl ?? "/Generics/TranslationRequests");
@@ -19,7 +37,10 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
   // GET: retry on network errors, 429 and 5xx.
   // POST: retry only on 429/502/503/504 - never on timeouts, since the server may have processed it.
   async function send(method: "GET" | "POST", url: string, body?: unknown): Promise<HttpResponseLike> {
-    const headers = await resolveHeaders();
+    const payload = JSON.stringify(body);
+    if (method === "POST" && payload === undefined) {
+      throw new Error("buildPayload() must return a JSON-serializable request body.");
+    }
     const retryStatus = (s: number) => (method === "GET" ? s === 429 || s >= 500 : [429, 502, 503, 504].includes(s));
 
     for (let attempt = 0; ; attempt++) {
@@ -31,10 +52,10 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
           method,
           headers: {
             Accept: "application/json",
-            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-            ...headers,
+            ...(payload !== undefined ? { "Content-Type": "application/json" } : {}),
+            ...await resolveHeaders(),
           },
-          body: body !== undefined ? JSON.stringify(body) : undefined,
+          body: payload,
           signal: ctrl.signal,
         });
         const text = await res.text();
@@ -65,17 +86,17 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
   const isDuplicate = cfg.isDuplicate ?? ((r: HttpResponseLike) => r.status === 409);
 
   return {
-    batchSize: cfg.batchSize ?? 1,
-    concurrency: cfg.concurrency ?? 3,
+    batchSize,
+    concurrency,
 
     async fetchExisting(appId) {
-      const p = cfg.getUrl ? cfg.getUrl(appId) : `/api/GetTranslations/${appId}`;
+      const p = cfg.getUrl ? cfg.getUrl(appId) : `/api/GetTranslations/${encodeURIComponent(appId)}`;
       const res = await send("GET", joinUrl(cfg.baseUrl, p));
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`GET ${p} failed with HTTP ${res.status}: ${snippet(res.body)}`);
       }
       const keys = cfg.parseExisting(res.body);
-      if (!Array.isArray(keys) || keys.some((k) => typeof k !== "string")) {
+      if (!Array.isArray(keys) || [...keys].some((k) => typeof k !== "string")) {
         throw new Error("parseExisting() must return string[] (a flat list of existing keys).");
       }
       return keys;
