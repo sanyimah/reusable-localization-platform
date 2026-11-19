@@ -1,0 +1,112 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 2703 >>
+stream
+0.06 0.12 0.20 rg 0 705 612 87 re f
+BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (REACT INTEGRATION) Tj ET
+BT /F2 26 Tf 1 1 1 rg 48 729 Td (Check translations before startup) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 680 Td (Install the CLI as a development dependency in the React project.) Tj ET
+0.93 0.96 0.98 rg 48 626 516 42 re f
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 652 Td (npm install --save-dev @sanyimah/i18n-keys) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 638 Td (npx i18n-keys init) Tj ET
+BT /F2 15 Tf 0.06 0.36 0.38 rg 48 603 Td (Connect the translation API) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 581 Td (In i18n-keys.config.ts, set the app ID, API base URL, and authentication headers.) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 565 Td (For the planned API, configure GET /generics/translations/{appId} and POST) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 549 Td (/generics/translations. Read the keys from the English map \(en\) and send one) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 533 Td (JSON body per missing key using { key, value: key }. Keep credentials in environment) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 517 Td (variables. Confirm the live API URL, authentication, and POST routing before use.) Tj ET
+BT /F2 15 Tf 0.06 0.36 0.38 rg 48 484 Td (Add the startup hook) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 462 Td (Add predev to package.json alongside your existing dev script. Here dev uses Vite.) Tj ET
+0.93 0.96 0.98 rg 48 352 516 98 re f
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 434 Td ({) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 420 Td (  "scripts": {) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 406 Td (    "predev": "i18n-keys sync --apply --yes --fail-on-missing",) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 392 Td (    "dev": "vite") Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 378 Td (  }) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 364 Td (}) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 339 Td (Run npm run dev. npm runs predev first. If GET finds missing keys, the CLI) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 323 Td (POSTs them and exits with status 1, so npm skips dev on that run. Run npm run dev) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 307 Td (again. If GET confirms all keys exist, npm starts the app. Failed API calls also block) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 291 Td (startup. If the API queues requests, startup stays blocked until GET returns the keys.) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 268 Td (If your command is npm start, name the hook prestart. In both cases, start the app) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 252 Td (through npm so the hook runs.) Tj ET
+BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
+BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (1 / 2) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 2724 >>
+stream
+0.06 0.12 0.20 rg 0 705 612 87 re f
+BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (PACKAGE MAINTENANCE) Tj ET
+BT /F2 26 Tf 1 1 1 rg 48 729 Td (Publish and release updates) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 680 Td (Run these commands from the package repository root.) Tj ET
+BT /F2 15 Tf 0.06 0.36 0.38 rg 48 647 Td (Publish the first release) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 625 Td (Use an npm account with access to the @sanyimah scope and enable two-factor) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 609 Td (authentication for interactive publishing.) Tj ET
+0.93 0.96 0.98 rg 48 513 516 84 re f
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 581 Td (npm login) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 567 Td (npm test) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 553 Td (npm run build) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 539 Td (npm pack --dry-run) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 525 Td (npm publish --access public) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 500 Td (In the dry run, check that dist/cli.js is listed. Publishing also runs the package build.) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 484 Td (The version in package.json must be available on npm. Publish a release containing) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 468 Td (the startup hook support before consumers use the predev example on page 1.) Tj ET
+BT /F2 15 Tf 0.06 0.36 0.38 rg 48 435 Td (Release an update) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 413 Td (Make, test, and commit your changes. Bump the version, publish, then push the) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 397 Td (release commit and tag.) Tj ET
+0.93 0.96 0.98 rg 48 315 516 70 re f
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 369 Td (npm test) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 355 Td (npm version patch) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 341 Td (npm publish --access public) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 327 Td (git push --follow-tags) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 302 Td (Use patch for fixes, minor for compatible features, and major for an intentional) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 286 Td (breaking release under a new major version. Each published release needs a new version.) Tj ET
+BT /F2 15 Tf 0.06 0.36 0.38 rg 48 253 Td (Update a consuming project) Tj ET
+0.93 0.96 0.98 rg 48 214 516 28 re f
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 226 Td (npm install --save-dev @sanyimah/i18n-keys@latest) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 201 Td (References: docs.npmjs.com/creating-and-publishing-scoped-public-packages/) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 185 Td (                 docs.npmjs.com/cli/commands/npm-version/) Tj ET
+BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
+BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (2 / 2) Tj ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000266 00000 n 
+0000000334 00000 n 
+0000000480 00000 n 
+0000003234 00000 n 
+0000003380 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+6155
+%%EOF

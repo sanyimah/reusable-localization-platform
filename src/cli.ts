@@ -32,7 +32,7 @@ Options:
   --limit <n>       (sync) Register at most n keys this run
   --yes             (sync --apply) Skip the confirmation prompt
   --mock            Use the local JSON mock instead of the real API
-  --fail-on-missing (check) Exit 1 if any keys are unregistered
+  --fail-on-missing (check, sync) Exit 1 if GET found missing keys, even after sync
   --json <file>     Write a JSON report
   --list            (scan) Print every discovered key
   --verbose         Don't truncate long lists
@@ -272,6 +272,12 @@ async function main(): Promise<number> {
   printRegister(summary, apply);
   await report(apply, summary);
   if (summary.failed.length) exitCode = 1;
+  else if (flags["fail-on-missing"]) {
+    if (apply && !summary.skippedByLimit.length) {
+      console.log("\nMissing keys were found and handled. Rerun to check again.");
+    }
+    exitCode = 1;
+  }
   return exitCode;
 }
 

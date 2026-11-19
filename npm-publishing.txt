@@ -1,0 +1,72 @@
+﻿PUBLISHING @sanyimah/i18n-keys TO NPM
+
+Run these commands in PowerShell from the package repository root, where
+package.json is located. Run each command separately and fix any errors
+before moving on.
+
+FIRST PUBLIC RELEASE
+
+1. Enable two-factor authentication on your npm account. Sign in and check
+   that you are using an account with publishing access to @sanyimah.
+
+   npm.cmd login
+   npm.cmd whoami
+
+2. Install dependencies, test, and build the package.
+
+   npm.cmd ci
+   npm.cmd test
+   npm.cmd run build
+
+3. Preview the files npm will publish.
+
+   npm.cmd pack --dry-run
+
+   Check that dist/cli.js is listed and that demo files, local databases,
+   and credentials are absent from the package.
+
+4. Publish publicly and complete the authentication prompt if requested.
+   The publish command also runs the package build.
+
+   npm.cmd publish --access public
+
+5. Check that the release appears on npm. The current local version is 0.1.0.
+
+   npm.cmd view "@sanyimah/i18n-keys@0.1.0" version
+
+UPLOADING AN UPDATE
+
+1. Make, test, and commit your changes. Check that the Git working tree
+   is clean before bumping the version.
+
+   npm.cmd test
+   git status --short
+
+2. Choose one version bump. These examples start from 0.1.0.
+
+   npm.cmd version patch   (bug fix, becomes 0.1.1)
+   npm.cmd version minor   (feature release, becomes 0.2.0)
+   npm.cmd version major   (major release, becomes 1.0.0)
+
+   By default, npm version creates a Git commit and tag. Each published
+   version number can be used only once for the same package.
+
+3. Build, preview, and publish the new version, then push the release
+   commit and tag to your Git remote.
+
+   npm.cmd run build
+   npm.cmd pack --dry-run
+   npm.cmd publish --access public
+   git push --follow-tags
+
+4. Verify the version listed on npm.
+
+   npm.cmd view "@sanyimah/i18n-keys" version
+
+   Consumers can install the latest release from their project folder.
+
+   npm.cmd install --save-dev "@sanyimah/i18n-keys@latest"
+
+Official npm documentation
+https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/
+https://docs.npmjs.com/cli/commands/npm-version/
