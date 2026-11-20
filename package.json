@@ -1,13 +1,20 @@
 {
   "name": "@sanyimah/i18n-keys",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Discovers i18next keys in React source, diffs them against your existing translation API, and registers the missing ones.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "bin": { "i18n-keys": "dist/cli.js" },
-  "files": ["dist", "README.md"],
-  "engines": { "node": ">=18" },
+  "bin": {
+    "i18n-keys": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "demo": "npm run build && node demo/test-api.mjs --sync",
