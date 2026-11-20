@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveConfig } from "../src/config.js";
 import { diffKeys } from "../src/differ.js";
 import { createHttpAdapter } from "../src/http-adapter.js";
 import { registerKeys } from "../src/registrar.js";
+import { scanProject } from "../src/scanner.js";
 import type { ApiAdapter } from "../src/types.js";
 
 describe("differ", () => {
@@ -86,6 +88,57 @@ describe("http adapter", () => {
     parseExisting: (b: unknown) => (b as { keys: string[] }).keys,
     buildPayload: (keys: string[], appId: string) => ({ appId, keys }),
   };
+
+  it("scans source, compares with GET, and posts only missing keys on apply", async () => {
+    const url = "https://example.test";
+    const getUrl = url + "/api/GetTranslations/demo%2Fapp";
+    const postUrl = url + "/Generics/TranslationRequests";
+    const scan = await scanProject(resolveConfig({
+      appId: "demo/app",
+      include: ["demo/src/App.tsx"],
+    }, process.cwd()));
+    const discovered = [...scan.keys.keys()].sort();
+    expect(discovered.length).toBeGreaterThan(1);
+    const [existing, ...missing] = discovered;
+    const database = new Set([existing]);
+    const fetchMock = vi.fn(async (requestUrl: string, init: RequestInit) => {
+      if (init.method === "GET" && requestUrl === getUrl) {
+        return Response.json({ keys: [...database] });
+      }
+      if (init.method === "POST" && requestUrl === postUrl) {
+        const payload = JSON.parse(init.body as string);
+        expect(payload.appId).toBe("demo/app");
+        expect(payload.keys).toEqual(missing);
+        payload.keys.forEach((key: string) => database.add(key));
+        return new Response(null, { status: 201 });
+      }
+      throw new Error(`Unexpected request: ${init.method} ${requestUrl}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = createHttpAdapter({ ...baseCfg, batchSize: discovered.length });
+
+    const diff = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
+    expect(diff).toEqual({ existing: [existing], missing });
+    const dryRun = await registerKeys(adapter, "demo/app", diff.missing, { apply: false });
+    expect(dryRun.planned).toEqual(missing);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const applied = await registerKeys(adapter, "demo/app", diff.missing, { apply: true });
+    expect(applied.registered).toEqual(missing);
+    const next = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
+    expect(next.missing).toEqual([]);
+  });
+
+  it("rejects an undefined POST body before sending the request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = createHttpAdapter({ ...baseCfg, buildPayload: () => undefined });
+    await expect(adapter.register(["A"], "app1")).resolves.toMatchObject({
+      status: "failed",
+      error: expect.stringContaining("buildPayload()"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   it("fetches and parses existing keys", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ keys: ["A", "B"] }), { status: 200 }));
