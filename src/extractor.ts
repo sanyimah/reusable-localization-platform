@@ -65,6 +65,7 @@ function describeDynamic(n: ts.Expression): string {
 
 const DECLARE_RE = /i18n-keys:\s*(.+)$/;
 const QUOTED_RE = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
+const BRACE_PLACEHOLDER_RE = /\{[^{}]*\}/;
 
 export function extractFromSource(
   file: string,
@@ -143,7 +144,7 @@ export function extractFromSource(
   };
 
   const addKey = (key: string, node: ts.Node, via: string) => {
-    if (isIgnored(node)) return;
+    if (isIgnored(node) || BRACE_PLACEHOLDER_RE.test(key)) return;
     keys.push({ key, file, via, ...posOf(node) });
   };
 
@@ -220,8 +221,10 @@ export function extractFromSource(
     if (!m) return;
     declaredLines.add(i + 1);
     for (const q of m[1].matchAll(QUOTED_RE)) {
+      const key = q[2].replace(/\\(["'`\\])/g, "$1");
+      if (BRACE_PLACEHOLDER_RE.test(key)) continue;
       keys.push({
-        key: q[2].replace(/\\(["'`\\])/g, "$1"),
+        key,
         file,
         line: i + 1,
         column: 1,

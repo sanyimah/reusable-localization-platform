@@ -49,7 +49,22 @@ export function changedFiles(
           "--diff-filter=ACMR",
           `${mode.since}...HEAD`,
         ];
-  const out = execFileSync("git", args, { cwd, encoding: "utf8" });
+  let out: string;
+  try {
+    out = execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (err) {
+    const stderr =
+      typeof err === "object" && err !== null && "stderr" in err
+        ? String(err.stderr ?? "").trim().split(/\r?\n/, 1)[0]
+        : "";
+    throw new Error(
+      `--staged/--since need a git repository with git installed${stderr ? `: ${stderr}` : "."}`,
+    );
+  }
   return new Set(
     out
       .split(/\r?\n/)

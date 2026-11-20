@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { existsSync, writeFileSync } from "node:fs";
+import dotenv from "dotenv";
 import path from "node:path";
-import readline from "node:readline/promises";
+import readline from "node:readline";
 import { changedFiles, scanProject } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { diffKeys } from "./differ.js";
@@ -11,6 +12,7 @@ import {
   printDiff,
   printRegister,
   printScan,
+  writeMissingTranslations,
   writeJsonReport,
 } from "./report.js";
 import { registerKeys } from "./registrar.js";
@@ -26,17 +28,18 @@ Usage:
 
 Options:
   --config <file>   Config path (default: i18n-keys.config.*)
-  --since <ref>     Only scan files changed since a git ref (e.g. origin/main)
-  --staged          Only scan git-staged files
+  --since <ref>     Only scan files changed since a git ref (requires a git repo)
+  --staged          Only scan git-staged files (requires a git repo)
   --apply           (sync) Actually POST. Without it, sync is a dry run.
   --limit <n>       (sync) Register at most n keys this run
-  --yes             (sync --apply) Skip the confirmation prompt
+  --yes             (sync --apply) Skip the TTY confirmation prompt
   --mock            Use the local JSON mock instead of the real API
-  --fail-on-missing (check, sync) Exit 1 if GET found missing keys, even after sync
+  --fail-on-missing (check, sync) Exit 1 if keys are still missing afterwards
   --json <file>     Write a JSON report
+  --export-missing <file> Write missing keys as en/fr/zh/es/de/it/pt dictionaries
   --list            (scan) Print every discovered key
   --verbose         Don't truncate long lists
-  --locations       (scan --list) Show file:line for each key
+  --locations       (scan --list) Show file:line for each keyks
   --filter <text>   (scan --list) Only keys containing text
 `;
 
@@ -55,25 +58,28 @@ export default defineConfig({
       return token ? { Authorization: \`Bearer \${token}\` } : {};
     },
 
-    // Example GET response: { "keys": ["Save"] }. Adapt this to your API.
-    parseExisting: (body) => {
-      const keys = (body as { keys?: unknown } | null)?.keys;
-      if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) {
-        throw new Error("Expected the GET response to contain a keys array of strings");
-      }
-      return keys;
-    },
+    // Optional. By default the GET response is expected to be
+    // { "<baseLang>": { "<key>": "<value or null>" } } and the keys of the
+    // \`baseLang\` dictionary (default "en") are used. Override for other shapes:
+    // baseLang: "en",
+    // parseExisting: (body) => body.keys,
 
     // Example POST body: { "appId": "your-app-id", "keys": ["Save"] }.
     // Adapt this to your API before running sync --apply.
     buildPayload: (keys, appId) => ({ appId, keys }),
 
-    batchSize: 1,
   },
 });
 `;
 
-const VALUE_FLAGS = new Set(["config", "since", "limit", "json", "filter"]);
+const VALUE_FLAGS = new Set([
+  "config",
+  "since",
+  "limit",
+  "json",
+  "filter",
+  "export-missing",
+]);
 
 function parseArgs(argv: string[]) {
   const flags: Record<string, string | boolean> = {};
@@ -108,13 +114,16 @@ function pickAdapter(cfg: ResolvedConfig, useMock: boolean): ApiAdapter {
 }
 
 async function confirm(question: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
   });
-  const answer = await rl.question(question);
-  rl.close();
-  return /^y(es)?$/i.test(answer.trim());
 }
 
 async function main(): Promise<number> {
@@ -127,11 +136,10 @@ async function main(): Promise<number> {
     return command ? 0 : 1;
   }
 
-  // Load .env if present (Node 20.12+). Ignore if unavailable.
-  try {
-    (process as unknown as { loadEnvFile?: () => void }).loadEnvFile?.();
-  } catch {
-    /* no .env - fine */
+  const envFile = path.join(cwd, ".env");
+  if (existsSync(envFile)) {
+    const result = dotenv.config({ path: envFile });
+    if (result.error) throw result.error;
   }
 
   if (command === "init") {
@@ -151,6 +159,18 @@ async function main(): Promise<number> {
     console.error(`Unknown command: ${command}\n`);
     console.log(HELP);
     return 2;
+  }
+
+  const exportMissingFile = flags["export-missing"];
+  if (exportMissingFile !== undefined) {
+    if (typeof exportMissingFile !== "string") {
+      console.error("--export-missing requires a file path.");
+      return 2;
+    }
+    if (!["check", "sync"].includes(command)) {
+      console.error("--export-missing can only be used with check or sync.");
+      return 2;
+    }
   }
 
   const cfg = await loadConfig(cwd, flags.config as string | undefined);
@@ -202,6 +222,12 @@ async function main(): Promise<number> {
 
   const { existing, missing } = diffKeys(scan.keys.keys(), existingKeys);
   printDiff(existing, missing, !!flags.verbose);
+
+  if (typeof exportMissingFile === "string") {
+    const outputFile = path.resolve(cwd, exportMissingFile);
+    await writeMissingTranslations(outputFile, missing);
+    console.log(`\nMissing translations written to ${exportMissingFile}`);
+  }
 
   const reportFile = (flags.json as string | undefined) ?? cfg.reportFile;
   const report = async (applied: boolean, summary?: RegisterSummary) => {
@@ -271,22 +297,23 @@ async function main(): Promise<number> {
   });
   printRegister(summary, apply);
   await report(apply, summary);
-  if (summary.failed.length) exitCode = 1;
-  else if (flags["fail-on-missing"]) {
-    if (apply && !summary.skippedByLimit.length) {
-      console.log("\nMissing keys were found and handled. Rerun to check again.");
-    }
+  const stillMissing = !apply || summary.skippedByLimit.length > 0;
+  if (summary.failed.length || (flags["fail-on-missing"] && stillMissing)) {
     exitCode = 1;
+  } else if (flags["fail-on-missing"] && apply) {
+    console.log("\nAll missing keys were registered.");
   }
   return exitCode;
 }
 
 main().then(
-  (code) => process.exit(code),
+  (code) => {
+    process.exitCode = code;
+  },
   (err) => {
     console.error(
       `\nError: ${err instanceof Error ? err.message : String(err)}`,
     );
-    process.exit(2);
+    process.exitCode = 2;
   },
 );

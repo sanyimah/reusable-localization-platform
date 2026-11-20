@@ -90,6 +90,15 @@ describe("extractor", () => {
     expect(keysOf(code)).toEqual(["Items"]);
   });
 
+  it("ignores translation keys containing brace placeholders", () => {
+    const code = `
+      const { t } = useTranslation();
+      t("({0} item)");
+      t("{name} items");
+      t("Normal item");`;
+    expect(keysOf(code)).toEqual(["Normal item"]);
+  });
+
   it("flags dynamic keys instead of guessing", () => {
     const code = `
       const { t } = useTranslation();

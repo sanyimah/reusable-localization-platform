@@ -35,7 +35,7 @@ export interface ApiAdapter {
   fetchExisting(appId: string): Promise<string[]>;
   /** Register one batch of keys. Return `failed` for normal failures instead of throwing. */
   register(keys: string[], appId: string): Promise<BatchOutcome>;
-  /** Keys per register() call. Default 1. */
+  /** Keys per register() call. Defaults to one. */
   batchSize?: number;
   /** Parallel register() calls. Default 3. */
   concurrency?: number;
@@ -57,15 +57,17 @@ export interface HttpApiConfig {
 
   /** Default: `/api/GetTranslations/${appId}` */
   getUrl?: (appId: string) => string;
-  /** REQUIRED. Turn the GET response body into a flat list of existing keys. */
-  parseExisting: (body: unknown) => string[];
+  /** Language dictionary used by the default parser. Default "en". */
+  baseLang?: string;
+  /** Turn the GET response body into a flat list of existing keys. Defaults to the baseLang dictionary. */
+  parseExisting?: (body: unknown) => string[];
 
   /** Default: `/Generics/TranslationRequests` */
   postUrl?: string | ((appId: string) => string);
   /** REQUIRED. Build the POST body for a batch of keys. */
   buildPayload: (keys: string[], appId: string) => unknown;
 
-  /** Keys per POST. Default 1 (safest while the contract is unverified). */
+  /** Keys per POST. Defaults to one. */
   batchSize?: number;
   concurrency?: number;
   /** Retries for transient failures. Default 2. */

@@ -1,7 +1,12 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resolveConfig } from "../src/config.js";
 import { diffKeys } from "../src/differ.js";
 import { createHttpAdapter } from "../src/http-adapter.js";
+import { createMockAdapter } from "../src/mock-adapter.js";
+import { parseExisting } from "../src/parse.js";
 import { registerKeys } from "../src/registrar.js";
 import { scanProject } from "../src/scanner.js";
 import type { ApiAdapter } from "../src/types.js";
@@ -11,6 +16,55 @@ describe("differ", () => {
     const r = diffKeys(["Save", "Cancel", "save", "Save"], ["Save"]);
     expect(r.existing).toEqual(["Save"]);
     expect(r.missing).toEqual(["Cancel", "save"]);
+  });
+});
+
+describe("mock adapter", () => {
+  it("reports an invalid mock file shape clearly", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-mock-"));
+    const file = path.join(directory, ".i18n-keys-mock.json");
+    try {
+      await writeFile(file, JSON.stringify(["a"]));
+      const adapter = createMockAdapter(file);
+      await expect(adapter.fetchExisting("app")).rejects.toThrow(
+        `${file} must look like { "keys": ["Save", "Cancel"] } or language dictionaries`,
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reads existing keys from an English language dictionary", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-mock-"));
+    const file = path.join(directory, ".i18n-keys-mock.json");
+    try {
+      await writeFile(
+        file,
+        JSON.stringify({
+          en: { Save: "Save", Cancel: null },
+          fr: { Save: "Enregistrer" },
+        }),
+      );
+      const adapter = createMockAdapter(file);
+      expect(await adapter.fetchExisting("app")).toEqual(["Save", "Cancel"]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("default parseExisting", () => {
+  it("reads keys from the English dictionary by default", () => {
+    expect(parseExisting({ en: { Save: "Save", Cancel: null } })).toEqual([
+      "Save",
+      "Cancel",
+    ]);
+  });
+
+  it("rejects a response without the requested language dictionary", () => {
+    expect(() => parseExisting({ fr: { Save: "Enregistrer" } })).toThrow(
+      'GET response must contain a "en" dictionary.',
+    );
   });
 });
 
@@ -41,6 +95,13 @@ describe("registrar", () => {
     const { adapter, calls } = fake();
     const s = await registerKeys(adapter, "app", ["a", "b", "c"], { apply: true });
     expect(calls).toHaveLength(2);
+    expect(s.registered.sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("uses one key per batch by default", async () => {
+    const { adapter, calls } = fake({ batchSize: undefined });
+    const s = await registerKeys(adapter, "app", ["a", "b", "c"], { apply: true });
+    expect(calls).toEqual([["a"], ["b"], ["c"]]);
     expect(s.registered.sort()).toEqual(["a", "b", "c"]);
   });
 
@@ -108,14 +169,14 @@ describe("http adapter", () => {
       if (init.method === "POST" && requestUrl === postUrl) {
         const payload = JSON.parse(init.body as string);
         expect(payload.appId).toBe("demo/app");
-        expect(payload.keys).toEqual(missing);
+        expect(payload.keys).toHaveLength(1);
         payload.keys.forEach((key: string) => database.add(key));
         return new Response(null, { status: 201 });
       }
       throw new Error(`Unexpected request: ${init.method} ${requestUrl}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    const adapter = createHttpAdapter({ ...baseCfg, batchSize: discovered.length });
+    const adapter = createHttpAdapter(baseCfg);
 
     const diff = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
     expect(diff).toEqual({ existing: [existing], missing });
@@ -124,7 +185,7 @@ describe("http adapter", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const applied = await registerKeys(adapter, "demo/app", diff.missing, { apply: true });
-    expect(applied.registered).toEqual(missing);
+    expect(applied.registered.sort()).toEqual(missing.sort());
     const next = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
     expect(next.missing).toEqual([]);
   });
@@ -146,6 +207,57 @@ describe("http adapter", () => {
     const adapter = createHttpAdapter(baseCfg);
     expect(await adapter.fetchExisting("app1")).toEqual(["A", "B"]);
     expect(fetchMock.mock.calls[0][0]).toBe("https://example.test/api/GetTranslations/app1");
+  });
+
+  it("uses the base language dictionary by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ en: { Save: "Save", Cancel: null } }), {
+          status: 200,
+        }),
+      ),
+    );
+    const adapter = createHttpAdapter({
+      baseUrl: "https://example.test",
+      buildPayload: (keys) => ({ keys }),
+    });
+    expect(await adapter.fetchExisting("app1")).toEqual(["Save", "Cancel"]);
+  });
+
+  it("rejects GET responses without the selected base language", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ fr: { Save: "Enregistrer" } }), {
+          status: 200,
+        }),
+      ),
+    );
+    const adapter = createHttpAdapter({
+      baseUrl: "https://example.test",
+      buildPayload: (keys) => ({ keys }),
+    });
+    await expect(adapter.fetchExisting("app1")).rejects.toThrow(
+      'GET response must contain a "en" dictionary.',
+    );
+  });
+
+  it("supports a configured base language", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ fr: { Save: "Enregistrer" } }), {
+          status: 200,
+        }),
+      ),
+    );
+    const adapter = createHttpAdapter({
+      baseUrl: "https://example.test",
+      baseLang: "fr",
+      buildPayload: (keys) => ({ keys }),
+    });
+    expect(await adapter.fetchExisting("app1")).toEqual(["Save"]);
   });
 
   it("throws if parseExisting returns the wrong shape", async () => {
