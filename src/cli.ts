@@ -40,7 +40,7 @@ Options:
   --filter <text>   (scan --list) Only keys containing text
 `;
 
-const TEMPLATE = `import { defineConfig } from "@sanyimah/i18n-keys";
+const TEMPLATE = `import { defineConfig } from "swd-translation-checker";
 
 export default defineConfig({
   appId: "your-app-id",

@@ -1,5 +1,5 @@
 {
-  "name": "@sanyimah/i18n-keys",
+  "name": "swd-translation-checker",
   "version": "0.1.1",
   "description": "Discovers i18next keys in React source, diffs them against your existing translation API, and registers the missing ones.",
   "type": "module",

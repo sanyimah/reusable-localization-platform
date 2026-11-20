@@ -1,4 +1,4 @@
-﻿PUBLISHING @sanyimah/i18n-keys TO NPM
+﻿PUBLISHING swd-translation-checker TO NPM
 
 Run these commands in PowerShell from the package repository root, where
 package.json is located. Run each command separately and fix any errors
@@ -7,7 +7,7 @@ before moving on.
 FIRST PUBLIC RELEASE
 
 1. Enable two-factor authentication on your npm account. Sign in and check
-   that you are using an account with publishing access to @sanyimah.
+   that you are using the account you intend to publish from.
 
    npm.cmd login
    npm.cmd whoami
@@ -28,13 +28,16 @@ FIRST PUBLIC RELEASE
 4. Publish publicly and complete the authentication prompt if requested.
    The publish command also runs the package build.
 
-   npm.cmd publish --access public
+   npm.cmd publish
 
-5. Check that the release appears on npm. The current local version is 0.1.0.
+5. Check that the release appears on npm. The current local version is 0.1.1.
 
-   npm.cmd view "@sanyimah/i18n-keys@0.1.0" version
+   npm.cmd view "swd-translation-checker@0.1.1" version
 
 UPLOADING AN UPDATE
+
+The previously published @sanyimah/i18n-keys package remains separate; this
+new name publishes as a different npm package.
 
 1. Make, test, and commit your changes. Check that the Git working tree
    is clean before bumping the version.
@@ -42,9 +45,9 @@ UPLOADING AN UPDATE
    npm.cmd test
    git status --short
 
-2. Choose one version bump. These examples start from 0.1.0.
+2. Choose one version bump. These examples start from 0.1.1.
 
-   npm.cmd version patch   (bug fix, becomes 0.1.1)
+   npm.cmd version patch   (bug fix, becomes 0.1.2)
    npm.cmd version minor   (feature release, becomes 0.2.0)
    npm.cmd version major   (major release, becomes 1.0.0)
 
@@ -56,17 +59,17 @@ UPLOADING AN UPDATE
 
    npm.cmd run build
    npm.cmd pack --dry-run
-   npm.cmd publish --access public
+   npm.cmd publish
    git push --follow-tags
 
 4. Verify the version listed on npm.
 
-   npm.cmd view "@sanyimah/i18n-keys" version
+   npm.cmd view "swd-translation-checker" version
 
    Consumers can install the latest release from their project folder.
 
-   npm.cmd install --save-dev "@sanyimah/i18n-keys@latest"
+   npm.cmd install --save-dev "swd-translation-checker@latest"
 
 Official npm documentation
-https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/
+https://docs.npmjs.com/creating-and-publishing-unscoped-public-packages/
 https://docs.npmjs.com/cli/commands/npm-version/

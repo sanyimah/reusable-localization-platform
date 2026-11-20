@@ -18,14 +18,14 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
 endobj
 7 0 obj
-<< /Length 2703 >>
+<< /Length 2739 >>
 stream
 0.06 0.12 0.20 rg 0 705 612 87 re f
 BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (REACT INTEGRATION) Tj ET
 BT /F2 26 Tf 1 1 1 rg 48 729 Td (Check translations before startup) Tj ET
 BT /F1 11 Tf 0.16 0.22 0.31 rg 48 680 Td (Install the CLI as a development dependency in the React project.) Tj ET
 0.93 0.96 0.98 rg 48 626 516 42 re f
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 652 Td (npm install --save-dev @sanyimah/i18n-keys) Tj ET
+BT /F3 9 Tf 0.07 0.17 0.25 rg 58 652 Td (npm install --save-dev swd-translation-checker) Tj ET
 BT /F3 9 Tf 0.07 0.17 0.25 rg 58 638 Td (npx i18n-keys init) Tj ET
 BT /F2 15 Tf 0.06 0.36 0.38 rg 48 603 Td (Connect the translation API) Tj ET
 BT /F1 11 Tf 0.16 0.22 0.31 rg 48 581 Td (In i18n-keys.config.ts, set the app ID, API base URL, and authentication headers.) Tj ET
@@ -48,7 +48,7 @@ BT /F1 11 Tf 0.16 0.22 0.31 rg 48 307 Td (again. If GET confirms all keys exist,
 BT /F1 11 Tf 0.16 0.22 0.31 rg 48 291 Td (startup. If the API queues requests, startup stays blocked until GET returns the keys.) Tj ET
 BT /F1 11 Tf 0.16 0.22 0.31 rg 48 268 Td (If your command is npm start, name the hook prestart. In both cases, start the app) Tj ET
 BT /F1 11 Tf 0.16 0.22 0.31 rg 48 252 Td (through npm so the hook runs.) Tj ET
-BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
+BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (swd-translation-checker) Tj ET
 BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (1 / 2) Tj ET
 endstream
 endobj
@@ -56,40 +56,56 @@ endobj
 << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
 endobj
 9 0 obj
-<< /Length 2724 >>
+<< /Length 3089 >>
 stream
 0.06 0.12 0.20 rg 0 705 612 87 re f
-BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (PACKAGE MAINTENANCE) Tj ET
-BT /F2 26 Tf 1 1 1 rg 48 729 Td (Publish and release updates) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 680 Td (Run these commands from the package repository root.) Tj ET
-BT /F2 15 Tf 0.06 0.36 0.38 rg 48 647 Td (Publish the first release) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 625 Td (Use an npm account with access to the @sanyimah scope and enable two-factor) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 609 Td (authentication for interactive publishing.) Tj ET
-0.93 0.96 0.98 rg 48 513 516 84 re f
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 581 Td (npm login) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 567 Td (npm test) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 553 Td (npm run build) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 539 Td (npm pack --dry-run) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 525 Td (npm publish --access public) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 500 Td (In the dry run, check that dist/cli.js is listed. Publishing also runs the package build.) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 484 Td (The version in package.json must be available on npm. Publish a release containing) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 468 Td (the startup hook support before consumers use the predev example on page 1.) Tj ET
-BT /F2 15 Tf 0.06 0.36 0.38 rg 48 435 Td (Release an update) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 413 Td (Make, test, and commit your changes. Bump the version, publish, then push the) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 397 Td (release commit and tag.) Tj ET
-0.93 0.96 0.98 rg 48 315 516 70 re f
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 369 Td (npm test) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 355 Td (npm version patch) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 341 Td (npm publish --access public) Tj ET
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 327 Td (git push --follow-tags) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 302 Td (Use patch for fixes, minor for compatible features, and major for an intentional) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 286 Td (breaking release under a new major version. Each published release needs a new version.) Tj ET
-BT /F2 15 Tf 0.06 0.36 0.38 rg 48 253 Td (Update a consuming project) Tj ET
-0.93 0.96 0.98 rg 48 214 516 28 re f
-BT /F3 9 Tf 0.07 0.17 0.25 rg 58 226 Td (npm install --save-dev @sanyimah/i18n-keys@latest) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 201 Td (References: docs.npmjs.com/creating-and-publishing-scoped-public-packages/) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 185 Td (                 docs.npmjs.com/cli/commands/npm-version/) Tj ET
-BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
+BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (AI SETUP PROMPT) Tj ET
+BT /F2 24 Tf 1 1 1 rg 48 729 Td (Configure the GET and POST API) Tj ET
+BT /F1 11 Tf 0.16 0.22 0.31 rg 48 681 Td (Copy the prompt below and give it to your AI assistant to set up this repository.) Tj ET
+0.93 0.96 0.98 rg 48 77 516 584 re f
+BT /F3 8 Tf 0.07 0.17 0.25 rg 58 642 Td
+(Inspect this repository and configure its i18n key synchronization for the following translation) Tj 0 -9.5 Td
+(       API contract.) Tj 0 -9.5 Td
+0 -9.5 Td
+(Requirements:) Tj 0 -9.5 Td
+0 -9.5 Td
+(1. Locate the i18n configuration file, usually named `i18n-keys.config.ts`, and update it in) Tj 0 -9.5 Td
+(       place.) Tj 0 -9.5 Td
+(2. Configure the HTTP API:) Tj 0 -9.5 Td
+(   - GET endpoint: `/generics/translations/{appId}`) Tj 0 -9.5 Td
+(   - POST endpoint: `/generics/translations`) Tj 0 -9.5 Td
+(   - Base URL: use `process.env.REACT_APP_API_BASE`) Tj 0 -9.5 Td
+(   - Authorization: use `I18N_API_TOKEN` as `Authorization: Bearer <token>` when set) Tj 0 -9.5 Td
+(3. Implement `parseExisting\(body\)` to:) Tj 0 -9.5 Td
+(   - Locate the English translation map under `en`, including nested response structures if) Tj 0 -9.5 Td
+(       necessary) Tj 0 -9.5 Td
+(   - Return `Object.keys\(en\)` as a flat `string[]`) Tj 0 -9.5 Td
+(   - Throw a clear error if no English map is found) Tj 0 -9.5 Td
+(4. Implement `buildPayload\(keys, appId\)` so each POST contains:) Tj 0 -9.5 Td
+(   - `{ key, value: key }`) Tj 0 -9.5 Td
+(   - The key must come from the batch; do not use `appId` in the POST body) Tj 0 -9.5 Td
+(5. Set `batchSize: 1` so every missing key is submitted as one request.) Tj 0 -9.5 Td
+(6. Configure `getUrl` to call:) Tj 0 -9.5 Td
+(   - `/generics/translations/{appId}`) Tj 0 -9.5 Td
+(   - URL-encode the app ID) Tj 0 -9.5 Td
+(7. Configure `postUrl` as `/generics/translations`.) Tj 0 -9.5 Td
+(8. Correct the source include glob to scan the actual application source directory.) Tj 0 -9.5 Td
+(9. Preserve any existing config fields, naming patterns, and package API conventions.) Tj 0 -9.5 Td
+(10. Do not change application behavior or translation resources.) Tj 0 -9.5 Td
+(11. Validate the setup with the smallest local commands:) Tj 0 -9.5 Td
+(    - Run a scan that proves source files are discovered) Tj 0 -9.5 Td
+(    - Run a dry-run sync if the API is available) Tj 0 -9.5 Td
+(    - Do not use `--apply` unless explicitly requested) Tj 0 -9.5 Td
+(12. Report the exact files changed and any assumptions or contract uncertainties.) Tj 0 -9.5 Td
+0 -9.5 Td
+(Important:) Tj 0 -9.5 Td
+(- GET existing keys from the English map \(`en`\)) Tj 0 -9.5 Td
+(- POST one JSON body per missing key) Tj 0 -9.5 Td
+(- POST body shape: `{ "key": "Save", "value": "Save" }`) Tj 0 -9.5 Td
+(- Do not infer or invent endpoint fields, routes, or response structures.) Tj 0 -9.5 Td
+(- Inspect the actual package type definitions and repository configuration before editing.) Tj 0 -9.5 Td
+ET
+BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (swd-translation-checker) Tj ET
 BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (2 / 2) Tj ET
 endstream
 endobj
@@ -103,148 +119,10 @@ xref
 0000000266 00000 n 
 0000000334 00000 n 
 0000000480 00000 n 
-0000003234 00000 n 
-0000003380 00000 n 
+0000003271 00000 n 
+0000003417 00000 n 
 trailer
 << /Size 10 /Root 1 0 R >>
 startxref
-6155
-%%EOF
-2 0 obj
-<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R] /Count 3 >>
-endobj
-10 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 11 0 R >>
-endobj
-11 0 obj
-<< /Length 3086 >>
-stream
-0.06 0.12 0.20 rg 0 705 612 87 re f
-BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (AI SETUP PROMPT) Tj ET
-BT /F2 24 Tf 1 1 1 rg 48 729 Td (Configure the GET and POST API) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 681 Td (Copy the prompt below and give it to your AI assistant to set up this repository.) Tj ET
-0.93 0.96 0.98 rg 48 77 516 584 re f
-BT /F3 8 Tf 0.07 0.17 0.25 rg 58 642 Td
-(Inspect this repository and configure its i18n key synchronization for the following translation) Tj 0 -9.5 Td
-(       API contract.) Tj 0 -9.5 Td
-0 -9.5 Td
-(Requirements:) Tj 0 -9.5 Td
-0 -9.5 Td
-(1. Locate the i18n configuration file, usually named `i18n-keys.config.ts`, and update it in) Tj 0 -9.5 Td
-(       place.) Tj 0 -9.5 Td
-(2. Configure the HTTP API:) Tj 0 -9.5 Td
-(   - GET endpoint: `/generics/translations/{appId}`) Tj 0 -9.5 Td
-(   - POST endpoint: `/generics/translations`) Tj 0 -9.5 Td
-(   - Base URL: use `process.env.REACT_APP_API_BASE`) Tj 0 -9.5 Td
-(   - Authorization: use `I18N_API_TOKEN` as `Authorization: Bearer <token>` when set) Tj 0 -9.5 Td
-(3. Implement `parseExisting\(body\)` to:) Tj 0 -9.5 Td
-(   - Locate the English translation map under `en`, including nested response structures if) Tj 0 -9.5 Td
-(       necessary) Tj 0 -9.5 Td
-(   - Return `Object.keys\(en\)` as a flat `string[]`) Tj 0 -9.5 Td
-(   - Throw a clear error if no English map is found) Tj 0 -9.5 Td
-(4. Implement `buildPayload\(keys, appId\)` so each POST contains:) Tj 0 -9.5 Td
-(   - `{ key, value: key }`) Tj 0 -9.5 Td
-(   - The key must come from the batch; do not use `appId` in the POST body) Tj 0 -9.5 Td
-(5. Set `batchSize: 1` so every missing key is submitted as one request.) Tj 0 -9.5 Td
-(6. Configure `getUrl` to call:) Tj 0 -9.5 Td
-(   - `/generics/translations/{appId}`) Tj 0 -9.5 Td
-(   - URL-encode the app ID) Tj 0 -9.5 Td
-(7. Configure `postUrl` as `/generics/translations`.) Tj 0 -9.5 Td
-(8. Correct the source include glob to scan the actual application source directory.) Tj 0 -9.5 Td
-(9. Preserve any existing config fields, naming patterns, and package API conventions.) Tj 0 -9.5 Td
-(10. Do not change application behavior or translation resources.) Tj 0 -9.5 Td
-(11. Validate the setup with the smallest local commands:) Tj 0 -9.5 Td
-(    - Run a scan that proves source files are discovered) Tj 0 -9.5 Td
-(    - Run a dry-run sync if the API is available) Tj 0 -9.5 Td
-(    - Do not use `--apply` unless explicitly requested) Tj 0 -9.5 Td
-(12. Report the exact files changed and any assumptions or contract uncertainties.) Tj 0 -9.5 Td
-0 -9.5 Td
-(Important:) Tj 0 -9.5 Td
-(- GET existing keys from the English map \(`en`\)) Tj 0 -9.5 Td
-(- POST one JSON body per missing key) Tj 0 -9.5 Td
-(- POST body shape: `{ "key": "Save", "value": "Save" }`) Tj 0 -9.5 Td
-(- Do not infer or invent endpoint fields, routes, or response structures.) Tj 0 -9.5 Td
-(- Inspect the actual package type definitions and repository configuration before editing.) Tj 0 -9.5 Td
-ET
-BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
-BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (3 / 3) Tj ET
-endstream
-endobj
-xref
-2 1
-0000006533 00000 n 
-10 2
-0000006603 00000 n 
-0000006751 00000 n 
-trailer
-<< /Size 12 /Root 1 0 R /Prev 6155 >>
-startxref
-9889
-%%EOF
-2 0 obj
-<< /Type /Pages /Kids [6 0 R 10 0 R] /Count 2 >>
-endobj
-11 0 obj
-<< /Length 3085 >>
-stream
-0.06 0.12 0.20 rg 0 705 612 87 re f
-BT /F2 10 Tf 0.40 0.83 0.80 rg 48 765 Td (AI SETUP PROMPT) Tj ET
-BT /F2 24 Tf 1 1 1 rg 48 729 Td (Configure the GET and POST API) Tj ET
-BT /F1 11 Tf 0.16 0.22 0.31 rg 48 681 Td (Copy the prompt below and give it to your AI assistant to set up this repository.) Tj ET
-0.93 0.96 0.98 rg 48 77 516 584 re f
-BT /F3 8 Tf 0.07 0.17 0.25 rg 58 642 Td
-(Inspect this repository and configure its i18n key synchronization for the following translation) Tj 0 -9.5 Td
-(       API contract.) Tj 0 -9.5 Td
-0 -9.5 Td
-(Requirements:) Tj 0 -9.5 Td
-0 -9.5 Td
-(1. Locate the i18n configuration file, usually named `i18n-keys.config.ts`, and update it in) Tj 0 -9.5 Td
-(       place.) Tj 0 -9.5 Td
-(2. Configure the HTTP API:) Tj 0 -9.5 Td
-(   - GET endpoint: `/generics/translations/{appId}`) Tj 0 -9.5 Td
-(   - POST endpoint: `/generics/translations`) Tj 0 -9.5 Td
-(   - Base URL: use `process.env.REACT_APP_API_BASE`) Tj 0 -9.5 Td
-(   - Authorization: use `I18N_API_TOKEN` as `Authorization: Bearer <token>` when set) Tj 0 -9.5 Td
-(3. Implement `parseExisting\(body\)` to:) Tj 0 -9.5 Td
-(   - Locate the English translation map under `en`, including nested response structures if) Tj 0 -9.5 Td
-(       necessary) Tj 0 -9.5 Td
-(   - Return `Object.keys\(en\)` as a flat `string[]`) Tj 0 -9.5 Td
-(   - Throw a clear error if no English map is found) Tj 0 -9.5 Td
-(4. Implement `buildPayload\(keys, appId\)` so each POST contains:) Tj 0 -9.5 Td
-(   - `{ key, value: key }`) Tj 0 -9.5 Td
-(   - The key must come from the batch; do not use `appId` in the POST body) Tj 0 -9.5 Td
-(5. Set `batchSize: 1` so every missing key is submitted as one request.) Tj 0 -9.5 Td
-(6. Configure `getUrl` to call:) Tj 0 -9.5 Td
-(   - `/generics/translations/{appId}`) Tj 0 -9.5 Td
-(   - URL-encode the app ID) Tj 0 -9.5 Td
-(7. Configure `postUrl` as `/generics/translations`.) Tj 0 -9.5 Td
-(8. Correct the source include glob to scan the actual application source directory.) Tj 0 -9.5 Td
-(9. Preserve any existing config fields, naming patterns, and package API conventions.) Tj 0 -9.5 Td
-(10. Do not change application behavior or translation resources.) Tj 0 -9.5 Td
-(11. Validate the setup with the smallest local commands:) Tj 0 -9.5 Td
-(    - Run a scan that proves source files are discovered) Tj 0 -9.5 Td
-(    - Run a dry-run sync if the API is available) Tj 0 -9.5 Td
-(    - Do not use `--apply` unless explicitly requested) Tj 0 -9.5 Td
-(12. Report the exact files changed and any assumptions or contract uncertainties.) Tj 0 -9.5 Td
-0 -9.5 Td
-(Important:) Tj 0 -9.5 Td
-(- GET existing keys from the English map \(`en`\)) Tj 0 -9.5 Td
-(- POST one JSON body per missing key) Tj 0 -9.5 Td
-(- POST body shape: `{ "key": "Save", "value": "Save" }`) Tj 0 -9.5 Td
-(- Do not infer or invent endpoint fields, routes, or response structures.) Tj 0 -9.5 Td
-(- Inspect the actual package type definitions and repository configuration before editing.) Tj 0 -9.5 Td
-ET
-BT /F2 9 Tf 0.20 0.36 0.46 rg 48 34 Td (@sanyimah/i18n-keys) Tj ET
-BT /F1 9 Tf 0.20 0.36 0.46 rg 535 34 Td (2 / 2) Tj ET
-endstream
-endobj
-xref
-2 1
-0000010030 00000 n 
-11 1
-0000010094 00000 n 
-trailer
-<< /Size 12 /Root 1 0 R /Prev 9889 >>
-startxref
-13232
+6558
 %%EOF

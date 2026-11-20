@@ -1,4 +1,4 @@
-# @sanyimah/i18n-keys
+# swd-translation-checker
 
 Find translation keys in JavaScript and TypeScript source, compare them with
 your translation API, and optionally register missing keys.
@@ -25,7 +25,7 @@ shape. Scanning is local; `check` and `sync` contact your configured API.
 ## Install
 
 ```sh
-npm install --save-dev @sanyimah/i18n-keys
+npm install --save-dev swd-translation-checker
 ```
 
 ## Configure
@@ -33,7 +33,7 @@ npm install --save-dev @sanyimah/i18n-keys
 Create `i18n-keys.config.mjs` in your project root:
 
 ```js
-import { defineConfig } from "@sanyimah/i18n-keys";
+import { defineConfig } from "swd-translation-checker";
 
 const baseUrl = process.env.I18N_API_URL;
 if (!baseUrl) {
@@ -81,7 +81,8 @@ your backend.
 
 The CLI also supports TypeScript and JavaScript config files (`.ts`, `.mts`,
 `.js`, `.cjs`) and JSON config files. Run `npx i18n-keys init` to create a
-starter TypeScript config.
+starter TypeScript config. The npm package is named `swd-translation-checker`;
+the installed CLI command remains `i18n-keys`.
 
 ## Usage
 
