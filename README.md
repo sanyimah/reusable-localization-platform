@@ -42,11 +42,20 @@ npx i18n-keys generate
 optional. It creates one JSON file per locale in `Translations/`. English text
 is used as the key in every locale file, and as the value in `en.json`.
 
-New translations are sent to Google Translate, and generated text is checked
-through Gramma's default LanguageTool service. Interactive runs ask before
-sending text; use `--yes` to allow it without the initial prompt. Grammar
+New translations are sent through MyMemory by default (`api.mymemory.translated.net`),
+and generated text is checked through Gramma's default LanguageTool service. In
+an interactive terminal, `generate` first offers translation setup: use the
+default MyMemory service, configure a custom engine/API key/URL for this run, or
+skip auto-translation and fill missing locale values with English placeholders.
+It then asks before sending text unless `--yes` is used. If a translation fails
+interactively, you can retry, reconfigure, skip that string, or abort. Grammar
 corrections are shown one at a time and are applied only when selected. In a
 non-interactive run, suggestions are printed but not applied.
+
+You can set `MYMEMORY_EMAIL` (or `TRANSLATE_EMAIL`) to include a contact email
+in MyMemory requests. To use a different translation provider via the
+`translate` package, set `TRANSLATE_ENGINE`, `TRANSLATE_KEY`, and optionally
+`TRANSLATE_URL` before running, or choose "configure" in the interactive setup.
 
 Existing locale values are preserved on reruns; only missing keys are
 translated. Current locale values are grammar-checked on each run, but
@@ -88,9 +97,13 @@ npx i18n-keys scan
 npx i18n-keys check
 ```
 
-`generate` uses Google Translate and LanguageTool over the network. The legacy
-`check` and `sync` commands still use their configured API or `--mock`
-adapter; they are separate from the per-locale generator.
+`generate` uses MyMemory and LanguageTool over the network by default. The
+translation service can be configured interactively at runtime, or by setting
+`MYMEMORY_EMAIL` / `TRANSLATE_EMAIL` for MyMemory, or `TRANSLATE_ENGINE`,
+`TRANSLATE_KEY`, and optionally `TRANSLATE_URL` to use a custom provider via
+the `translate` package. The legacy `check` and `sync` commands still use their
+configured API or `--mock` adapter; they are separate from the per-locale
+generator.
 
 ## Key detection
 

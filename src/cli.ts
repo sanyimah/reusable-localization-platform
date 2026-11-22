@@ -111,6 +111,50 @@ async function confirm(question: string): Promise<boolean> {
   });
 }
 
+async function ask(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function configureTranslationSetup(): Promise<{ skipTranslation: boolean }> {
+  const choice = (
+    await ask(
+      "\nTranslation setup: [Enter] default MyMemory, [c] configure custom engine/API key, [s] skip auto-translation (use English placeholders): ",
+    )
+  ).toLowerCase();
+
+  if (choice === "s" || choice === "skip") {
+    console.log("Auto-translation disabled for this run; missing locale values will use English text.");
+    return { skipTranslation: true };
+  }
+
+  if (choice === "c" || choice === "configure") {
+    const engine = await ask("Translate engine (google/deepl/libre/yandex) [google]: ");
+    const key = await ask("Translate API key (leave blank for none): ");
+    const url = await ask("Translate URL (optional, leave blank for default): ");
+    if (engine) process.env.TRANSLATE_ENGINE = engine;
+    if (key) process.env.TRANSLATE_KEY = key;
+    if (url) process.env.TRANSLATE_URL = url;
+    if (engine || key || url) {
+      console.log(
+        `Custom translation service configured${engine ? ` (engine: ${engine})` : ""}${key ? " with API key" : ""}.`,
+      );
+    } else {
+      console.log("No custom translation settings entered; using default MyMemory.");
+    }
+  }
+
+  return { skipTranslation: false };
+}
+
 async function main(): Promise<number> {
   const { flags, positional } = parseArgs(process.argv.slice(2));
   const command = positional[0];
@@ -180,31 +224,60 @@ async function main(): Promise<number> {
 
   if (command === "generate") {
     const keys = [...scan.keys.keys()];
+    let skipTranslation = false;
+    if (keys.length && process.stdin.isTTY && !flags.yes) {
+      ({ skipTranslation } = await configureTranslationSetup());
+    }
+
     if (keys.length && !flags.yes) {
       if (!process.stdin.isTTY) {
         console.error(
-          "Generation sends extracted strings to Google Translate and LanguageTool. Re-run with --yes to allow this in a non-interactive terminal.",
+          "Generation sends extracted strings to external translation/grammar services. Re-run with --yes to allow this in a non-interactive terminal.",
         );
         return 2;
       }
-      const ok = await confirm(
-        "\nSend new strings to Google Translate and LanguageTool to generate locale files? (y/N) ",
-      );
+      const consentMessage = skipTranslation
+        ? "\nSend strings to LanguageTool for grammar review? Auto-translation is skipped for this run. (y/N) "
+        : "\nSend new strings to translation and LanguageTool services to generate locale files? (y/N) ";
+      const ok = await confirm(consentMessage);
       if (!ok) {
         console.log("Aborted.");
         return 1;
       }
     }
+
     const translationsDir =
       typeof flags["translations-dir"] === "string"
         ? flags["translations-dir"]
         : cfg.translationsDir;
     const { generateTranslationFiles } = await import("./generator.js");
-    await generateTranslationFiles(
-      keys,
-      cwd,
-      translationsDir,
-    );
+    const services = skipTranslation
+      ? {
+          translateText: async (text: string) => text,
+          recoverTranslation: async () => "abort" as const,
+        }
+      : process.stdin.isTTY
+        ? {
+            recoverTranslation: async (error: Error, key: string, locale: string) => {
+              console.error(
+                `\nTranslation failed for ${locale} ${JSON.stringify(key)}: ${error.message}`,
+              );
+              const action = (
+                await ask(
+                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [a]bort: ",
+                )
+              ).toLowerCase();
+              if (action === "r" || action === "retry") return "retry" as const;
+              if (action === "s" || action === "skip") return "skip" as const;
+              if (action === "c" || action === "configure") {
+                await configureTranslationSetup();
+                return "configure" as const;
+              }
+              return "abort" as const;
+            },
+          }
+        : undefined;
+    await generateTranslationFiles(keys, cwd, translationsDir, services);
     console.log(`\nLocale files written to ${translationsDir}.`);
     return exitCode;
   }
