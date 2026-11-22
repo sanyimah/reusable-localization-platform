@@ -1,27 +1,26 @@
 # swd-translation-checker
 
-Find translation keys in JavaScript and TypeScript source, compare them with
-your translation API, and optionally register missing keys.
-
-The scanner works with common `i18next` patterns. The API adapter is
-configurable because every translation backend has its own request and response
-shape. Scanning is local; `check` and `sync` contact your configured API.
+Scan a client app for translatable UI text, generate per-language JSON files,
+translate new entries with Google Translate, and review grammar suggestions.
+The `generate` workflow does not connect to your app's translation API or
+database.
 
 ## Features
 
 - Finds keys in `t("...")`, `i18n.t("...")`, and `<Trans i18nKey="..." />`.
-- Supports configured translation function and hook names.
+- Finds visible JSX text and common user-facing props such as `title`,
+  `label`, `placeholder`, `alt`, and `aria-label`.
 - Reports dynamic key usages that cannot be resolved statically.
-- Compares discovered keys with an existing translation API.
-- Dry-runs registration by default; live POST requests require `sync --apply`.
-- Includes a local JSON mock adapter for trying the workflow without an API.
+- Writes `Translations/en.json`, `fr.json`, `zh.json`, `es.json`, `de.json`,
+  `it.json`, and `pt.json`.
+- Preserves existing translations and translates only missing entries.
+- Prompts before applying grammar suggestions.
 
 ## Requirements
 
 - Node.js 16 or later.
 - `typescript` 5 or later in your project (used to parse source files).
-- An API configuration or custom adapter for `check` and `sync`. The `scan`
-  command works without an API.
+- Internet access when generating translations or checking grammar.
 
 ## Install
 
@@ -35,116 +34,70 @@ The package is named `swd-translation-checker`; the installed CLI command is
 ## Quick start
 
 ```sh
-npx i18n-keys init          # creates i18n-keys.config.ts
-npx i18n-keys scan --list   # no network needed
-npx i18n-keys sync --mock   # try the whole flow against a local file
+npx i18n-keys init
+npx i18n-keys generate
 ```
+
+`generate` scans `src/**/*.{js,jsx,ts,tsx}` by default; a config file is
+optional. It creates one JSON file per locale in `Translations/`. English text
+is used as the key in every locale file, and as the value in `en.json`.
+
+New translations are sent to Google Translate, and generated text is checked
+through Gramma's default LanguageTool service. Interactive runs ask before
+sending text; use `--yes` to allow it without the initial prompt. Grammar
+corrections are shown one at a time and are applied only when selected. In a
+non-interactive run, suggestions are printed but not applied.
+
+Existing locale values are preserved on reruns; only missing keys are
+translated. Current locale values are grammar-checked on each run, but
+corrections are applied only after an explicit selection. Review generated
+translations before shipping.
 
 ## Configure
 
-Create `i18n-keys.config.mjs` (or run `npx i18n-keys init`):
+The config is optional. Create `i18n-keys.config.ts` (or run
+`npx i18n-keys init`) to customize scan paths and output directory:
 
 ```js
 import { defineConfig } from "swd-translation-checker";
 
-const baseUrl = process.env.I18N_API_URL;
-if (!baseUrl) {
-  throw new Error("Set I18N_API_URL before running i18n-keys.");
-}
-
 export default defineConfig({
-  appId: "your-app-id",
   include: ["src/**/*.{js,jsx,ts,tsx}"],
   exclude: ["**/*.test.*", "**/*.stories.*"],
   dynamicKeys: "warn", // "warn", "error", or "ignore"
-
-  api: {
-    baseUrl,
-    headers: () => {
-      const token = process.env.I18N_API_TOKEN;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    },
-
-    // Optional. By default the GET response is expected to be
-    // { "<baseLang>": { "<key>": "<value or null>" } } and the keys of the
-    // `baseLang` dictionary (default "en") are used. Override for other shapes:
-    // baseLang: "en",
-    // parseExisting: (body) => body.keys,
-
-    // Adapt this to the request body expected by your POST endpoint.
-    buildPayload: (keys, appId) => ({ appId, keys }),
-  },
+  translationsDir: "Translations",
 });
 ```
 
-Set `I18N_API_URL` and, if needed, `I18N_API_TOKEN` in your environment. The
-example assumes that the GET endpoint returns an English dictionary and that
-the POST endpoint accepts `{ appId, keys }`; override `parseExisting` and
-`buildPayload` to match your API's contract. A `.env` file in the working
-directory is loaded automatically.
-
-By default, the HTTP adapter uses
-`GET /api/GetTranslations/{appId}` and
-`POST /Generics/TranslationRequests`. Override these with `getUrl` and
-`postUrl` if your API uses different paths. By default, each POST contains one
-missing key (`batchSize: 1`), so syncing multiple keys makes multiple POST
-requests. Up to three requests may be in flight at once by default; configure
-`concurrency` and a larger `batchSize` if your backend accepts larger batches.
-Retry behavior can also be configured to match your backend.
-
-The CLI also supports TypeScript and JavaScript config files (`.ts`, `.mts`,
-`.js`, `.cjs`) and JSON config files.
+The CLI also supports JavaScript and JSON config files. The generator does not
+need `appId`, API credentials, or an API section.
 
 ## Usage
 
 ```sh
-# Scan source files; does not contact the API.
+# Generate or update locale JSON files.
+npx i18n-keys generate
+
+# Explicitly allow external translation/grammar services in CI.
+npx i18n-keys generate --yes
+
+# Scan and list discovered text without translating.
 npx i18n-keys scan
 
-# Compare discovered keys with the API; never registers keys.
+# Legacy API workflow (optional).
 npx i18n-keys check
-
-# Preview missing keys. This is a dry run unless --apply is supplied.
-npx i18n-keys sync
-
-# Register missing keys with the configured API.
-npx i18n-keys sync --apply
 ```
 
-`sync --apply` asks for confirmation when run in an interactive terminal. In
-non-interactive environments (CI, pipes) it **does not prompt**, so review your
-payload with a dry run first. Add `--yes` to skip the prompt in a terminal.
-
-To try the full workflow against a local JSON file instead of a real API:
-
-```sh
-npx i18n-keys sync --mock
-npx i18n-keys sync --mock --apply
-```
-
-The mock stores keys in `.i18n-keys-mock.json` (override with `mockFile`). The
-file may contain a flat `{ "keys": [...] }` list or language dictionaries such
-as `{ "en": { "Save": "Save" }, "fr": { "Save": "Enregistrer" } }`. Dictionary
-mock files are compared using their English (`en`) keys.
-
-To create a translation handoff file without contacting the API, use
-`check --mock --export-missing <file>`:
-
-```sh
-npx i18n-keys check --mock --export-missing untranslated.json
-```
-
-The export contains missing keys as dictionaries for `en`, `fr`, `zh`, `es`,
-`de`, `it`, and `pt`. English values default to the key text; other language
-values are empty for translators to fill in. This assumes the key itself is
-the English source text.
+`generate` uses Google Translate and LanguageTool over the network. The legacy
+`check` and `sync` commands still use their configured API or `--mock`
+adapter; they are separate from the per-locale generator.
 
 ## Key detection
 
-By default, the scanner recognizes calls to `t`, `i18n.t`, and `i18next.t`,
-including `t` or `i18n` obtained from `useTranslation()`. It also recognizes
-`Trans` components with an `i18nKey` attribute. Configure `functions`, `hooks`,
-`i18nObjects`, and `transComponents` to match your project.
+The scanner recognizes calls to `t`, `i18n.t`, and `i18next.t`, including `t`
+or `i18n` obtained from `useTranslation()`. It also recognizes `Trans`
+components with an `i18nKey` attribute, visible JSX text, and common
+user-facing JSX attributes.
 
 Static string literals, string concatenations, arrays of keys, and both
 branches of a conditional expression are collected. Expressions that depend
@@ -168,11 +121,12 @@ filter dynamic usages by regular expression.
 
 ```text
 --config <file>   Use a specific config file
+--translations-dir <dir> Output directory for generated locale files
+--yes             (generate) Allow external services; (sync --apply) skip prompt
 --since <ref>     Scan only files changed since a git ref
 --staged          Scan only git-staged files
 --apply           (sync) Send registration requests; otherwise sync is a dry run
 --limit <n>       (sync) Register at most n missing keys
---yes             (sync --apply) Skip the interactive confirmation prompt
 --mock            Use the local JSON mock instead of the configured API
 --fail-on-missing Exit 1 if keys are still missing afterwards (see below)
 --json <file>     Write a JSON report
@@ -183,30 +137,20 @@ filter dynamic usages by regular expression.
 --verbose         Don't truncate long lists
 ```
 
-`--staged` and `--since` change which source files are scanned; they do not
-make the API comparison incremental.
+`--staged` and `--since` limit the source scan.
 
 ### Exit codes
 
 | Code | Meaning |
 | ---- | ------- |
 | 0 | Success |
-| 1 | Key errors, `dynamicKeys: "error"` with dynamic usages, failed registrations, or `--fail-on-missing` with keys still missing |
-| 2 | Usage, config, git, or API fetch error |
+| 1 | Key errors, dynamic-key errors, failed registrations, or declined confirmation |
+| 2 | Usage, config, git, or fetch error |
 
-With `sync --apply --fail-on-missing`, the command exits 0 when every missing
-key was registered successfully, and 1 if any remain (failures or `--limit`).
+## Legacy API adapter
 
-### CI example
-
-```sh
-npx i18n-keys check --fail-on-missing --json i18n-report.json
-```
-
-## API adapter
-
-If you already have an API client or need custom behavior, provide an `adapter`
-in the config instead of `api`. An adapter implements:
+`check` and `sync` remain available for existing API workflows. If you already
+have an API client, provide an `adapter` in the config. An adapter implements:
 
 - `fetchExisting(appId)`: return all existing keys as a flat `string[]`.
 - `register(keys, appId)`: register one batch and return `registered`,

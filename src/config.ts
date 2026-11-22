@@ -17,7 +17,7 @@ export function defineConfig(config: ToolkitConfig): ToolkitConfig {
 }
 
 export function resolveConfig(raw: ToolkitConfig, cwd: string): ResolvedConfig {
-  if (!raw || !raw.appId) throw new Error("Config error: `appId` is required.");
+  if (!raw) throw new Error("Config error: expected a configuration object.");
   return {
     ...raw,
     cwd,
@@ -30,15 +30,21 @@ export function resolveConfig(raw: ToolkitConfig, cwd: string): ResolvedConfig {
     dynamicKeys: raw.dynamicKeys ?? "warn",
     maxKeyLength: raw.maxKeyLength ?? 500,
     mockFile: raw.mockFile ?? ".i18n-keys-mock.json",
+    translationsDir: raw.translationsDir ?? "Translations",
   };
 }
 
-export async function loadConfig(cwd: string, explicitPath?: string): Promise<ResolvedConfig> {
+export async function loadConfig(
+  cwd: string,
+  explicitPath?: string,
+  allowMissing = false,
+): Promise<ResolvedConfig> {
   const file = explicitPath
     ? path.resolve(cwd, explicitPath)
     : CONFIG_NAMES.map((n) => path.join(cwd, n)).find((p) => existsSync(p));
 
   if (!file || !existsSync(file)) {
+    if (allowMissing && !explicitPath) return resolveConfig({}, cwd);
     throw new Error(`No config found. Create i18n-keys.config.ts (run \`i18n-keys init\`) in ${cwd}`);
   }
 

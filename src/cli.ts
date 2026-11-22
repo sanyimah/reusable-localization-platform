@@ -21,6 +21,7 @@ import type { ApiAdapter, RegisterSummary, ResolvedConfig } from "./types.js";
 const HELP = `i18n-keys - find i18next keys in source and register missing ones
 
 Usage:
+  i18n-keys generate [options]   Scan UI text, translate, grammar-review, and write locale files
   i18n-keys scan  [options]     Discover keys. No network.
   i18n-keys check [options]     Scan + compare with the API. Never writes.
   i18n-keys sync  [options]     Scan + compare + register missing keys.
@@ -28,6 +29,8 @@ Usage:
 
 Options:
   --config <file>   Config path (default: i18n-keys.config.*)
+  --yes             (generate) Allow sending new strings to Google Translate and LanguageTool
+  --translations-dir <dir> Output directory for generated locale JSON files
   --since <ref>     Only scan files changed since a git ref (requires a git repo)
   --staged          Only scan git-staged files (requires a git repo)
   --apply           (sync) Actually POST. Without it, sync is a dry run.
@@ -46,29 +49,10 @@ Options:
 const TEMPLATE = `import { defineConfig } from "swd-translation-checker";
 
 export default defineConfig({
-  appId: "your-app-id",
   include: ["src/**/*.{js,jsx,ts,tsx}"],
   exclude: ["**/*.test.*", "**/*.stories.*"],
   dynamicKeys: "warn", // "warn" | "error" | "ignore"
-
-  api: {
-    baseUrl: process.env.I18N_API_URL!,
-    headers: (): Record<string, string> => {
-      const token = process.env.I18N_API_TOKEN;
-      return token ? { Authorization: \`Bearer \${token}\` } : {};
-    },
-
-    // Optional. By default the GET response is expected to be
-    // { "<baseLang>": { "<key>": "<value or null>" } } and the keys of the
-    // \`baseLang\` dictionary (default "en") are used. Override for other shapes:
-    // baseLang: "en",
-    // parseExisting: (body) => body.keys,
-
-    // Example POST body: { "appId": "your-app-id", "keys": ["Save"] }.
-    // Adapt this to your API before running sync --apply.
-    buildPayload: (keys, appId) => ({ appId, keys }),
-
-  },
+  translationsDir: "Translations",
 });
 `;
 
@@ -79,6 +63,7 @@ const VALUE_FLAGS = new Set([
   "json",
   "filter",
   "export-missing",
+  "translations-dir",
 ]);
 
 function parseArgs(argv: string[]) {
@@ -150,12 +135,12 @@ async function main(): Promise<number> {
     }
     writeFileSync(target, TEMPLATE);
     console.log(
-      "Created i18n-keys.config.ts - fill in appId, parseExisting and buildPayload.",
+      "Created i18n-keys.config.ts - adjust include/exclude and translationsDir as needed.",
     );
     return 0;
   }
 
-  if (!["scan", "check", "sync"].includes(command)) {
+  if (!["generate", "scan", "check", "sync"].includes(command)) {
     console.error(`Unknown command: ${command}\n`);
     console.log(HELP);
     return 2;
@@ -173,7 +158,11 @@ async function main(): Promise<number> {
     }
   }
 
-  const cfg = await loadConfig(cwd, flags.config as string | undefined);
+  const cfg = await loadConfig(
+    cwd,
+    flags.config as string | undefined,
+    command === "scan" || command === "generate",
+  );
 
   // Incremental scan: only affects which files are *scanned*; the DB comparison is always full.
   let restrict: Set<string> | undefined;
@@ -181,13 +170,44 @@ async function main(): Promise<number> {
   else if (typeof flags.since === "string")
     restrict = changedFiles(cwd, { since: flags.since });
 
-  console.log(`[${cfg.appId}] ${command}${restrict ? " (incremental)" : ""}`);
+  console.log(`[${cfg.appId ?? "local"}] ${command}${restrict ? " (incremental)" : ""}`);
   const scan = await scanProject(cfg, restrict);
   printScan(scan, cfg, !!flags.verbose);
 
   let exitCode = 0;
   if (cfg.dynamicKeys === "error" && scan.dynamic.length) exitCode = 1;
   if (scan.issues.some((i) => i.level === "error")) exitCode = 1;
+
+  if (command === "generate") {
+    const keys = [...scan.keys.keys()];
+    if (keys.length && !flags.yes) {
+      if (!process.stdin.isTTY) {
+        console.error(
+          "Generation sends extracted strings to Google Translate and LanguageTool. Re-run with --yes to allow this in a non-interactive terminal.",
+        );
+        return 2;
+      }
+      const ok = await confirm(
+        "\nSend new strings to Google Translate and LanguageTool to generate locale files? (y/N) ",
+      );
+      if (!ok) {
+        console.log("Aborted.");
+        return 1;
+      }
+    }
+    const translationsDir =
+      typeof flags["translations-dir"] === "string"
+        ? flags["translations-dir"]
+        : cfg.translationsDir;
+    const { generateTranslationFiles } = await import("./generator.js");
+    await generateTranslationFiles(
+      keys,
+      cwd,
+      translationsDir,
+    );
+    console.log(`\nLocale files written to ${translationsDir}.`);
+    return exitCode;
+  }
 
   if (command === "scan") {
     if (flags.list) {
@@ -209,10 +229,14 @@ async function main(): Promise<number> {
   }
 
   // check / sync: need the API from here on.
+  if (!cfg.appId) {
+    throw new Error("Config error: `appId` is required for check/sync commands.");
+  }
+  const appId = cfg.appId;
   const adapter = pickAdapter(cfg, !!flags.mock);
   let existingKeys: string[];
   try {
-    existingKeys = await adapter.fetchExisting(cfg.appId);
+    existingKeys = await adapter.fetchExisting(appId);
   } catch (err) {
     console.error(
       `\nCould not fetch existing keys; aborting without registering anything.\n  ${(err as Error).message}`,
@@ -233,7 +257,7 @@ async function main(): Promise<number> {
   const report = async (applied: boolean, summary?: RegisterSummary) => {
     if (reportFile) {
       await writeJsonReport(path.resolve(cwd, reportFile), {
-        appId: cfg.appId,
+        appId,
         command,
         applied,
         scan,
@@ -277,13 +301,13 @@ async function main(): Promise<number> {
     const first = toSend.slice(0, Math.max(adapter.batchSize ?? 1, 1));
     console.log("\nFirst payload that will be sent:");
     console.log(
-      JSON.stringify(adapter.previewPayload(first, cfg.appId), null, 2),
+      JSON.stringify(adapter.previewPayload(first, appId), null, 2),
     );
   }
 
   if (apply && process.stdin.isTTY && !flags.yes) {
     const ok = await confirm(
-      `\nRegister ${toSend.length} key(s) for "${cfg.appId}"? (y/N) `,
+      `\nRegister ${toSend.length} key(s) for "${appId}"? (y/N) `,
     );
     if (!ok) {
       console.log("Aborted.");
@@ -291,7 +315,7 @@ async function main(): Promise<number> {
     }
   }
 
-  const summary = await registerKeys(adapter, cfg.appId, missing, {
+  const summary = await registerKeys(adapter, appId, missing, {
     limit,
     apply,
   });

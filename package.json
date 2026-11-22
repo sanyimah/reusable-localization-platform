@@ -1,23 +1,24 @@
 {
   "name": "swd-translation-checker",
-  "version": "0.1.3",
-  "description": "Discovers i18next keys in React source, diffs them against your existing translation API, and registers the missing ones.",
+  "version": "0.1.4",
+  "description": "Scans client-side UI text and generates grammar-reviewed per-language JSON translation files.",
   "keywords": [
     "i18n",
     "i18next",
     "translations",
     "react",
     "cli",
-    "missing-keys"
+    "google-translate",
+    "grammar"
   ],
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SWD-DEV/REPO_NAME.git"
+    "url": "git+https://github.com/sanyimah/reusable-localization-platform.git"
   },
-  "homepage": "https://github.com/SWD-DEV/REPO_NAME#readme",
+  "homepage": "https://github.com/sanyimah/reusable-localization-platform#readme",
   "bugs": {
-    "url": "https://github.com/SWD-DEV/REPO_NAME/issues"
+    "url": "https://github.com/sanyimah/reusable-localization-platform/issues"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -50,8 +51,10 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "fast-glob": "^3.3.2",
+    "gramma": "^1.6.0",
     "jiti": "^2.4.2",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "translate": "^3.1.1"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"

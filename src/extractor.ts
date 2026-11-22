@@ -66,6 +66,18 @@ function describeDynamic(n: ts.Expression): string {
 const DECLARE_RE = /i18n-keys:\s*(.+)$/;
 const QUOTED_RE = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
 const BRACE_PLACEHOLDER_RE = /\{[^{}]*\}/;
+const UI_TEXT_ATTRIBUTES = new Set([
+  "alt",
+  "aria-description",
+  "aria-label",
+  "caption",
+  "description",
+  "helpertext",
+  "label",
+  "placeholder",
+  "title",
+  "tooltip",
+]);
 
 export function extractFromSource(
   file: string,
@@ -148,6 +160,12 @@ export function extractFromSource(
     keys.push({ key, file, via, ...posOf(node) });
   };
 
+  const addVisibleText = (key: string, node: ts.Node, via: string) => {
+    const normalized = key.replace(/\s+/g, " ").trim();
+    if (!normalized) return;
+    addKey(normalized, node, via);
+  };
+
   const addDynamic = (expr: ts.Expression, node: ts.Node) => {
     if (isIgnored(node)) return;
     dynamic.push({
@@ -176,6 +194,37 @@ export function extractFromSource(
 
   // Pass 2: collect calls.
   const visit = (node: ts.Node): void => {
+    if (ts.isJsxText(node)) {
+      const parent = node.parent;
+      const siblings = ts.isJsxElement(parent)
+        ? parent.children
+        : ts.isJsxFragment(parent)
+          ? parent.children
+          : undefined;
+      const index = siblings?.indexOf(node) ?? -1;
+      const adjacentToExpression =
+        index >= 0 &&
+        ((index > 0 && ts.isJsxExpression(siblings![index - 1])) ||
+          (index + 1 < siblings!.length &&
+            ts.isJsxExpression(siblings![index + 1])));
+      if (!adjacentToExpression) addVisibleText(node.text, node, "JSX text");
+    }
+
+    if (ts.isJsxAttribute(node)) {
+      const name = node.name.getText(sf).toLowerCase();
+      if (UI_TEXT_ATTRIBUTES.has(name) && node.initializer) {
+        if (ts.isStringLiteral(node.initializer)) {
+          addVisibleText(node.initializer.text, node, `JSX ${name}`);
+        } else if (
+          ts.isJsxExpression(node.initializer) &&
+          node.initializer.expression
+        ) {
+          const value = staticString(node.initializer.expression);
+          if (value !== undefined) addVisibleText(value, node, `JSX ${name}`);
+        }
+      }
+    }
+
     if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const callee = node.expression;
       if (ts.isIdentifier(callee) && fnNames.has(callee.text)) {

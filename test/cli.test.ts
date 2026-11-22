@@ -57,16 +57,43 @@ afterAll(() => {
 });
 
 describe("CLI", () => {
-  it("initializes a config with the README's default parser guidance", async () => {
+  it("scans the default src tree without a config file", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "i18n-keys-no-config-"));
+    scratchDirectories.push(cwd);
+    mkdirSync(path.join(cwd, "src"));
+    writeFileSync(path.join(cwd, "src", "app.jsx"), "<button>Save</button>");
+
+    const result = await runCli(cwd, ["scan", "--list"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('"Save"');
+  });
+
+  it("generates per-locale files without API configuration when the scan is empty", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "i18n-keys-generate-cli-"));
+    scratchDirectories.push(cwd);
+    mkdirSync(path.join(cwd, "src"));
+
+    const result = await runCli(cwd, ["generate"]);
+
+    expect(result.status).toBe(0);
+    expect(
+      ["en", "fr", "zh", "es", "de", "it", "pt"].map((locale) =>
+        readFileSync(path.join(cwd, "Translations", `${locale}.json`), "utf8"),
+      ),
+    ).toEqual(Array(7).fill("{}\n"));
+  });
+
+  it("initializes a scan-only config without API settings", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "i18n-keys-init-"));
     scratchDirectories.push(cwd);
     const result = await runCli(cwd, ["init"]);
     const config = readFileSync(path.join(cwd, "i18n-keys.config.ts"), "utf8");
 
     expect(result.status).toBe(0);
-    expect(config).toContain('// baseLang: "en",');
-    expect(config).toContain("// parseExisting: (body) => body.keys,");
-    expect(config).not.toContain('Example GET response: { "keys": ["Save"] }');
+    expect(config).toContain('translationsDir: "Translations"');
+    expect(config).not.toContain("api:");
+    expect(config).not.toContain("appId:");
   });
 
   it("passes fail-on-missing after successfully registering all missing keys", async () => {

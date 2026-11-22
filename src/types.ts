@@ -81,7 +81,7 @@ export interface HttpApiConfig {
 }
 
 export interface ToolkitConfig {
-  appId: string;
+  appId?: string;
   include?: string[];
   exclude?: string[];
   /** Extra function names that behave like t(). Default ["t"]. */
@@ -102,6 +102,8 @@ export interface ToolkitConfig {
   mockFile?: string;
   /** Write a JSON report here after each run. */
   reportFile?: string;
+  /** Output directory used by `generate`. Default "Translations". */
+  translationsDir?: string;
 }
 
 export interface ResolvedConfig extends ToolkitConfig {
@@ -115,6 +117,7 @@ export interface ResolvedConfig extends ToolkitConfig {
   dynamicKeys: "warn" | "error" | "ignore";
   maxKeyLength: number;
   mockFile: string;
+  translationsDir: string;
 }
 
 export interface KeyIssue {

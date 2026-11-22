@@ -68,6 +68,25 @@ describe("extractor", () => {
     expect(keysOf(code)).toEqual(["Welcome Back"]);
   });
 
+  it("extracts visible JSX text and common user-facing attributes", () => {
+    const code = `
+      const component = (
+        <button title="Save" aria-label={"Save changes"}>
+          Save Changes
+        </button>
+      );`;
+    expect(keysOf(code).sort()).toEqual([
+      "Save",
+      "Save Changes",
+      "Save changes",
+    ]);
+  });
+
+  it("skips JSX text fragments next to dynamic expressions", () => {
+    const code = `const component = <span>({count} items)</span>;`;
+    expect(keysOf(code)).toEqual([]);
+  });
+
   it("handles static template literals and constant concatenation", () => {
     const code = `
       const { t } = useTranslation();
