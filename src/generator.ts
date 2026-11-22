@@ -302,6 +302,28 @@ async function translateWithMyMemory(text: string, target: string): Promise<stri
   return decodeBasicEntities(translatedText);
 }
 
+async function writeLocaleFiles(
+  outputDirectory: string,
+  englishFile: string,
+  english: LocaleFile,
+  targetFiles: Map<(typeof LOCALES)[number], LocaleFile>,
+): Promise<void> {
+  await mkdir(outputDirectory, { recursive: true });
+  const output = [
+    [englishFile, english],
+    ...LOCALES.map((locale) => [
+      path.join(outputDirectory, `${locale.file}.json`),
+      targetFiles.get(locale)!,
+    ] as const),
+  ] as const;
+  for (const [file, contents] of output) {
+    const sorted = Object.fromEntries(
+      Object.entries(contents).sort(([a], [b]) => a.localeCompare(b)),
+    );
+    await writeFile(file, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
+  }
+}
+
 export async function generateTranslationFiles(
   keys: Iterable<string>,
   cwd: string,
@@ -355,6 +377,17 @@ export async function generateTranslationFiles(
     renderProgress(progress, missingTranslations > 0 ? "Translating" : "Reviewing");
   }
 
+  let aborted = false;
+  let abortError: Error | undefined;
+
+  const saveProgress = async () => {
+    try {
+      await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
+    } catch {
+      // Best effort: preserve translation progress if possible.
+    }
+  };
+
   try {
     for (const key of orderedKeys) {
       if (!Object.prototype.hasOwnProperty.call(english, key)) {
@@ -394,40 +427,48 @@ export async function generateTranslationFiles(
                 );
                 break;
               }
-              throw new Error(
+              aborted = true;
+              abortError = new Error(
                 `Translation failed for ${locale.file} ${JSON.stringify(key)}: ${err.message}`,
               );
+              break;
             }
           }
-          translations[key] = translated;
+          if (aborted) break;
+          translations[key] = translated!;
           advanceProgress(progress, "Translating", locale.file, key);
+          await saveProgress();
         }
       }
+      if (aborted) break;
     }
 
-    for (const key of orderedKeys) {
-      renderProgress(progress, "Reviewing", "en", key);
-      english[key] = await reviewGrammar(
-        english[key],
-        key,
-        "en",
-        GRAMMAR_LANGUAGE,
-        activeServices,
-        progress,
-      );
-      advanceProgress(progress, "Reviewing", "en", key);
-      for (const locale of LOCALES) {
-        const translations = targetFiles.get(locale)!;
-        renderProgress(progress, "Reviewing", locale.file, key);
-        translations[key] = await reviewGrammar(
-          translations[key],
+    if (!aborted) {
+      for (const key of orderedKeys) {
+        renderProgress(progress, "Reviewing", "en", key);
+        english[key] = await reviewGrammar(
+          english[key],
           key,
-          locale.file,
-          locale.grammar,
+          "en",
+          GRAMMAR_LANGUAGE,
           activeServices,
           progress,
         );
-        advanceProgress(progress, "Reviewing", locale.file, key);
+        advanceProgress(progress, "Reviewing", "en", key);
+        for (const locale of LOCALES) {
+          const translations = targetFiles.get(locale)!;
+          renderProgress(progress, "Reviewing", locale.file, key);
+          translations[key] = await reviewGrammar(
+            translations[key],
+            key,
+            locale.file,
+            locale.grammar,
+            activeServices,
+            progress,
+          );
+          advanceProgress(progress, "Reviewing", locale.file, key);
+        }
+        await saveProgress();
       }
     }
   } finally {
@@ -437,18 +478,6 @@ export async function generateTranslationFiles(
     }
   }
 
-  await mkdir(outputDirectory, { recursive: true });
-  const output = [
-    [englishFile, english],
-    ...LOCALES.map((locale) => [
-      path.join(outputDirectory, `${locale.file}.json`),
-      targetFiles.get(locale)!,
-    ] as const),
-  ] as const;
-  for (const [file, contents] of output) {
-    const sorted = Object.fromEntries(
-      Object.entries(contents).sort(([a], [b]) => a.localeCompare(b)),
-    );
-    await writeFile(file, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
-  }
+  await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
+  if (aborted && abortError) throw abortError;
 }

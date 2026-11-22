@@ -251,23 +251,29 @@ async function main(): Promise<number> {
         ? flags["translations-dir"]
         : cfg.translationsDir;
     const { generateTranslationFiles } = await import("./generator.js");
+    let skipAllTranslations = false;
     const services = skipTranslation
       ? {
           translateText: async (text: string) => text,
-          recoverTranslation: async () => "abort" as const,
         }
       : process.stdin.isTTY
         ? {
             recoverTranslation: async (error: Error, key: string, locale: string) => {
+              if (skipAllTranslations) return "skip" as const;
               console.error(
                 `\nTranslation failed for ${locale} ${JSON.stringify(key)}: ${error.message}`,
               );
               const action = (
                 await ask(
-                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [a]bort: ",
+                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [k] skip all remaining (use English), [a]bort and save progress: ",
                 )
               ).toLowerCase();
               if (action === "r" || action === "retry") return "retry" as const;
+              if (action === "k" || action === "skip-all" || action === "all") {
+                skipAllTranslations = true;
+                console.log("Skipping all remaining translation failures for this run (English placeholders will be used).");
+                return "skip" as const;
+              }
               if (action === "s" || action === "skip") return "skip" as const;
               if (action === "c" || action === "configure") {
                 await configureTranslationSetup();
