@@ -37,7 +37,9 @@ describe("translation file generation", () => {
         Save: "zh:Save",
       });
       expect(translateText).toHaveBeenCalledTimes(11);
-      expect(checkGrammar).toHaveBeenCalledTimes(14);
+      expect(checkGrammar).toHaveBeenCalledTimes(2);
+      expect(checkGrammar).toHaveBeenCalledWith("Cancel", "en-GB");
+      expect(checkGrammar).toHaveBeenCalledWith("Save", "en-GB");
 
       translateText.mockClear();
       checkGrammar.mockClear();
@@ -48,34 +50,84 @@ describe("translation file generation", () => {
         { translateText, checkGrammar },
       );
       expect(translateText).not.toHaveBeenCalled();
-      expect(checkGrammar).toHaveBeenCalledTimes(14);
+      expect(checkGrammar).toHaveBeenCalledTimes(2);
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }
   });
 
-  it("only applies grammar suggestions selected by the user", async () => {
+  it("reviews English (en-GB) before translation and applies selected corrections", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-grammar-"));
-    const checkGrammar = vi.fn(async (_text: string, language: string) => ({
+    const checkGrammar = vi.fn(async (text: string, language: string) => ({
       matches:
-        language === "fr"
-          ? [{ message: "Suggestion", offset: 0, length: 7, replacements: [{ value: "Salut" }] }]
+        language === "en-GB" && text === "Color"
+          ? [
+              {
+                message: "British English spelling",
+                offset: 0,
+                length: 5,
+                replacements: [{ value: "Colour" }],
+              },
+            ]
           : [],
     }));
+    const translateText = vi.fn(async (text: string, locale: string) => `${locale}:${text}`);
 
     try {
-      await generateTranslationFiles(["Hello"], cwd, "Translations", {
-        translateText: async () => "Bonjour",
+      await generateTranslationFiles(["Color"], cwd, "Translations", {
+        translateText,
         checkGrammar,
-        chooseCorrection: async (locale) => (locale === "fr" ? 0 : undefined),
+        chooseCorrection: async () => 0,
       });
 
+      expect(checkGrammar).toHaveBeenCalledTimes(1);
+      expect(checkGrammar).toHaveBeenCalledWith("Color", "en-GB");
+      expect(translateText).toHaveBeenCalledWith("Colour", "fr");
+      expect(
+        JSON.parse(await readFile(path.join(cwd, "Translations", "en.json"), "utf8")),
+      ).toEqual({ Color: "Colour" });
       expect(
         JSON.parse(await readFile(path.join(cwd, "Translations", "fr.json"), "utf8")),
-      ).toEqual({ Hello: "Salut" });
+      ).toEqual({ Color: "fr:Colour" });
       expect(
         JSON.parse(await readFile(path.join(cwd, "Translations", "es.json"), "utf8")),
-      ).toEqual({ Hello: "Bonjour" });
+      ).toEqual({ Color: "es:Colour" });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps English text unchanged when a grammar suggestion is declined", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-grammar-keep-"));
+    const checkGrammar = vi.fn(async (text: string, language: string) => ({
+      matches:
+        language === "en-GB" && text === "Color"
+          ? [
+              {
+                message: "British English spelling",
+                offset: 0,
+                length: 5,
+                replacements: [{ value: "Colour" }],
+              },
+            ]
+          : [],
+    }));
+    const translateText = vi.fn(async (text: string, locale: string) => `${locale}:${text}`);
+
+    try {
+      await generateTranslationFiles(["Color"], cwd, "Translations", {
+        translateText,
+        checkGrammar,
+        chooseCorrection: async () => undefined,
+      });
+
+      expect(translateText).toHaveBeenCalledWith("Color", "fr");
+      expect(
+        JSON.parse(await readFile(path.join(cwd, "Translations", "en.json"), "utf8")),
+      ).toEqual({ Color: "Color" });
+      expect(
+        JSON.parse(await readFile(path.join(cwd, "Translations", "fr.json"), "utf8")),
+      ).toEqual({ Color: "fr:Color" });
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

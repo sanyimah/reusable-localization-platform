@@ -41,7 +41,7 @@ const LOCALES = [
   { file: "pt", target: "pt", grammar: "pt-PT" },
 ] as const;
 
-const GRAMMAR_LANGUAGE = "en-US";
+const ENGLISH_GRAMMAR_LANGUAGE = "en-GB";
 
 interface GrammarReplacement {
   value: string;
@@ -365,6 +365,12 @@ export async function generateTranslationFiles(
   );
 
   const orderedKeys = [...new Set(keys)].sort((a, b) => a.localeCompare(b));
+  for (const key of orderedKeys) {
+    if (!Object.prototype.hasOwnProperty.call(english, key)) {
+      english[key] = key;
+    }
+  }
+
   let missingTranslations = 0;
   for (const key of orderedKeys) {
     for (const locale of LOCALES) {
@@ -372,9 +378,10 @@ export async function generateTranslationFiles(
       if (!Object.prototype.hasOwnProperty.call(translations, key)) missingTranslations += 1;
     }
   }
-  const progress = createProgress(missingTranslations + orderedKeys.length * (LOCALES.length + 1));
+
+  const progress = createProgress(orderedKeys.length + missingTranslations);
   if (progress.enabled) {
-    renderProgress(progress, missingTranslations > 0 ? "Translating" : "Reviewing");
+    renderProgress(progress, orderedKeys.length > 0 ? "Reviewing" : "Translating");
   }
 
   let aborted = false;
@@ -390,9 +397,22 @@ export async function generateTranslationFiles(
 
   try {
     for (const key of orderedKeys) {
-      if (!Object.prototype.hasOwnProperty.call(english, key)) {
-        english[key] = key;
-      }
+      renderProgress(progress, "Reviewing", "en", key);
+      english[key] = await reviewGrammar(
+        english[key],
+        key,
+        "en",
+        ENGLISH_GRAMMAR_LANGUAGE,
+        activeServices,
+        progress,
+      );
+      advanceProgress(progress, "Reviewing", "en", key);
+      await saveProgress();
+    }
+
+    for (const key of orderedKeys) {
+      if (aborted) break;
+      const sourceText = english[key];
       for (const locale of LOCALES) {
         const translations = targetFiles.get(locale)!;
         if (!Object.prototype.hasOwnProperty.call(translations, key)) {
@@ -400,7 +420,7 @@ export async function generateTranslationFiles(
           while (translated === undefined) {
             try {
               renderProgress(progress, "Translating", locale.file, key);
-              translated = await activeServices.translateText(key, locale.target);
+              translated = await activeServices.translateText(sourceText, locale.target);
               if (!translated.trim()) {
                 throw new Error(
                   `Translation service returned an empty ${locale.file} translation for ${JSON.stringify(key)}.`,
@@ -421,7 +441,7 @@ export async function generateTranslationFiles(
                 continue;
               }
               if (recovery === "skip") {
-                translated = key;
+                translated = sourceText;
                 console.log(
                   `[${locale.file}] Using English text for ${JSON.stringify(key)} (translation skipped).`,
                 );
@@ -439,36 +459,6 @@ export async function generateTranslationFiles(
           advanceProgress(progress, "Translating", locale.file, key);
           await saveProgress();
         }
-      }
-      if (aborted) break;
-    }
-
-    if (!aborted) {
-      for (const key of orderedKeys) {
-        renderProgress(progress, "Reviewing", "en", key);
-        english[key] = await reviewGrammar(
-          english[key],
-          key,
-          "en",
-          GRAMMAR_LANGUAGE,
-          activeServices,
-          progress,
-        );
-        advanceProgress(progress, "Reviewing", "en", key);
-        for (const locale of LOCALES) {
-          const translations = targetFiles.get(locale)!;
-          renderProgress(progress, "Reviewing", locale.file, key);
-          translations[key] = await reviewGrammar(
-            translations[key],
-            key,
-            locale.file,
-            locale.grammar,
-            activeServices,
-            progress,
-          );
-          advanceProgress(progress, "Reviewing", locale.file, key);
-        }
-        await saveProgress();
       }
     }
   } finally {

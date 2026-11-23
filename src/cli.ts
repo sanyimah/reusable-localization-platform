@@ -21,7 +21,7 @@ import type { ApiAdapter, RegisterSummary, ResolvedConfig } from "./types.js";
 const HELP = `i18n-keys - find i18next keys in source and register missing ones
 
 Usage:
-  i18n-keys generate [options]   Scan UI text, translate, grammar-review, and write locale files
+  i18n-keys generate [options]   Scan UI text, review English (en-GB) in en.json, translate missing strings, and write locale files
   i18n-keys scan  [options]     Discover keys. No network.
   i18n-keys check [options]     Scan + compare with the API. Never writes.
   i18n-keys sync  [options]     Scan + compare + register missing keys.
@@ -29,7 +29,7 @@ Usage:
 
 Options:
   --config <file>   Config path (default: i18n-keys.config.*)
-  --yes             (generate) Allow sending new strings to Google Translate and LanguageTool
+  --yes             (generate) Allow sending strings to translation and LanguageTool services
   --translations-dir <dir> Output directory for generated locale JSON files
   --since <ref>     Only scan files changed since a git ref (requires a git repo)
   --staged          Only scan git-staged files (requires a git repo)
@@ -237,8 +237,8 @@ async function main(): Promise<number> {
         return 2;
       }
       const consentMessage = skipTranslation
-        ? "\nSend strings to LanguageTool for grammar review? Auto-translation is skipped for this run. (y/N) "
-        : "\nSend new strings to translation and LanguageTool services to generate locale files? (y/N) ";
+        ? "\nSend English strings from en.json to LanguageTool for British English (en-GB) grammar review? Auto-translation is skipped for this run. (y/N) "
+        : "\nSend English strings to LanguageTool for British English (en-GB) grammar review, and new strings to translation services to generate locale files? (y/N) ";
       const ok = await confirm(consentMessage);
       if (!ok) {
         console.log("Aborted.");

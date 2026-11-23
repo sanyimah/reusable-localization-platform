@@ -1,8 +1,8 @@
 # swd-translation-checker
 
 Scan a client app for translatable UI text, generate per-language JSON files,
-translate new entries with Google Translate, and review grammar suggestions.
-The `generate` workflow does not connect to your app's translation API or
+review English strings for British English, and translate new entries. The
+`generate` workflow does not connect to your app's translation API or
 database.
 
 ## Features
@@ -13,8 +13,9 @@ database.
 - Reports dynamic key usages that cannot be resolved statically.
 - Writes `Translations/en.json`, `fr.json`, `zh.json`, `es.json`, `de.json`,
   `it.json`, and `pt.json`.
+- Reviews English strings in `en.json` for British English (`en-GB`) before
+  translating and prompts before applying corrections.
 - Preserves existing translations and translates only missing entries.
-- Prompts before applying grammar suggestions.
 
 ## Requirements
 
@@ -42,15 +43,24 @@ npx i18n-keys generate
 optional. It creates one JSON file per locale in `Translations/`. English text
 is used as the key in every locale file, and as the value in `en.json`.
 
-New translations are sent through MyMemory by default (`api.mymemory.translated.net`),
-and generated text is checked through Gramma's default LanguageTool service. In
-an interactive terminal, `generate` first offers translation setup: use the
-default MyMemory service, configure a custom engine/API key/URL for this run, or
-skip auto-translation and fill missing locale values with English placeholders.
-It then asks before sending text unless `--yes` is used. If a translation fails
-interactively, you can retry, reconfigure, skip that string, or abort. Grammar
-corrections are shown one at a time and are applied only when selected. In a
-non-interactive run, suggestions are printed but not applied.
+When you run `generate`, it first checks the English strings for the scanned
+keys in `en.json` using Gramma's default LanguageTool service with British
+English (`en-GB`). Only `en.json` is grammar-checked; `fr.json`, `zh.json`,
+`es.json`, `de.json`, `it.json`, and `pt.json` are not grammar-checked. Flagged
+English issues are shown in the terminal: in an interactive run you can choose
+a suggested correction or keep the text as-is, and corrections are applied only
+after an explicit selection. In a non-interactive run, suggestions are printed
+but not applied.
+
+After the English review, new translations are sent through MyMemory by default
+(`api.mymemory.translated.net`) for any missing non-English locale values.
+Translations are generated from the reviewed English text. In an interactive
+terminal, `generate` first offers translation setup: use the default MyMemory
+service, configure a custom engine/API key/URL for this run, or skip
+auto-translation and fill missing locale values with English placeholders. It
+then asks before sending text unless `--yes` is used. If a translation fails
+interactively, you can retry, reconfigure, skip that string, skip all
+remaining, or abort and save progress.
 
 You can set `MYMEMORY_EMAIL` (or `TRANSLATE_EMAIL`) to include a contact email
 in MyMemory requests. To use a different translation provider via the
@@ -58,9 +68,7 @@ in MyMemory requests. To use a different translation provider via the
 `TRANSLATE_URL` before running, or choose "configure" in the interactive setup.
 
 Existing locale values are preserved on reruns; only missing keys are
-translated. Current locale values are grammar-checked on each run, but
-corrections are applied only after an explicit selection. Review generated
-translations before shipping.
+translated. Review generated translations before shipping.
 
 ## Configure
 
@@ -97,13 +105,14 @@ npx i18n-keys scan
 npx i18n-keys check
 ```
 
-`generate` uses MyMemory and LanguageTool over the network by default. The
-translation service can be configured interactively at runtime, or by setting
-`MYMEMORY_EMAIL` / `TRANSLATE_EMAIL` for MyMemory, or `TRANSLATE_ENGINE`,
-`TRANSLATE_KEY`, and optionally `TRANSLATE_URL` to use a custom provider via
-the `translate` package. The legacy `check` and `sync` commands still use their
-configured API or `--mock` adapter; they are separate from the per-locale
-generator.
+`generate` checks English strings in `en.json` with LanguageTool (British
+English, `en-GB`) before translating, then uses MyMemory by default to fill
+missing non-English values. The translation service can be configured
+interactively at runtime, or by setting `MYMEMORY_EMAIL` / `TRANSLATE_EMAIL`
+for MyMemory, or `TRANSLATE_ENGINE`, `TRANSLATE_KEY`, and optionally
+`TRANSLATE_URL` to use a custom provider via the `translate` package. The
+legacy `check` and `sync` commands still use their configured API or `--mock`
+adapter; they are separate from the per-locale generator.
 
 ## Key detection
 
