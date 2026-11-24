@@ -1,6 +1,6 @@
 {
   "name": "swd-translation-checker",
-  "version": "0.1.7",
+  "version": "0.1.6",
   "description": "Scans client-side UI text and generates grammar-reviewed per-language JSON translation files.",
   "keywords": [
     "i18n",
@@ -51,6 +51,7 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "fast-glob": "^3.3.2",
+    "gramma": "^1.6.0",
     "jiti": "^2.4.2",
     "node-fetch": "^3.3.2",
     "translate": "^3.1.1"

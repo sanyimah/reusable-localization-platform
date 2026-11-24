@@ -429,17 +429,6 @@ export async function generateTranslationFiles(
     renderProgress(progress, orderedKeys.length > 0 ? "Reviewing" : "Translating");
   }
 
-  let aborted = false;
-  let abortError: Error | undefined;
-
-  const saveProgress = async () => {
-    try {
-      await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
-    } catch {
-      // Best effort: preserve translation progress if possible.
-    }
-  };
-
   try {
     for (const key of orderedKeys) {
       renderProgress(progress, "Reviewing", "en", key);
@@ -452,14 +441,11 @@ export async function generateTranslationFiles(
         progress,
       );
       advanceProgress(progress, "Reviewing", "en", key);
-      await saveProgress();
     }
 
     for (const key of orderedKeys) {
-      if (aborted) break;
       const sourceText = english[key];
       for (const locale of LOCALES) {
-        if (aborted) break;
         const translations = targetFiles.get(locale)!;
         if (!Object.prototype.hasOwnProperty.call(translations, key)) {
           let translated: string | undefined;
@@ -493,17 +479,13 @@ export async function generateTranslationFiles(
                 );
                 break;
               }
-              aborted = true;
-              abortError = new Error(
+              throw new Error(
                 `Translation failed for ${locale.file} ${JSON.stringify(key)}: ${err.message}`,
               );
-              break;
             }
           }
-          if (aborted) break;
           translations[key] = translated!;
           advanceProgress(progress, "Translating", locale.file, key);
-          await saveProgress();
         }
       }
     }
@@ -514,6 +496,18 @@ export async function generateTranslationFiles(
     }
   }
 
-  await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
-  if (aborted && abortError) throw abortError;
+  await mkdir(outputDirectory, { recursive: true });
+  const output = [
+    [englishFile, english],
+    ...LOCALES.map((locale) => [
+      path.join(outputDirectory, `${locale.file}.json`),
+      targetFiles.get(locale)!,
+    ] as const),
+  ] as const;
+  for (const [file, contents] of output) {
+    const sorted = Object.fromEntries(
+      Object.entries(contents).sort(([a], [b]) => a.localeCompare(b)),
+    );
+    await writeFile(file, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
+  }
 }
