@@ -1,6 +1,6 @@
 {
   "name": "swd-translation-checker",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Scans client-side UI text and generates grammar-reviewed per-language JSON translation files.",
   "keywords": [
     "i18n",
