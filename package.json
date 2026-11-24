@@ -45,7 +45,7 @@
     "build": "tsc -p tsconfig.json",
     "demo": "npm run build && node demo/test-api.mjs --sync",
     "demo:sync": "npm run build && cd demo && node ../dist/cli.js sync --apply --yes",
-    "test": "vitest run",
+    "test": "node scripts/test-node16.mjs run",
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {

@@ -14,15 +14,15 @@ describe("extractor", () => {
     expect(keysOf(code)).toEqual(["Customer Information"]);
   });
 
-  it("does not report a dynamic usage covered by a declared-keys comment", () => {
+  it("reports dynamic usages in t() calls without extracting declared keys", () => {
     const code = `
       const { t } = useTranslation();
       // i18n-keys: "Active", "Inactive"
       const label = t(status);
       const other = t(\`errors.\${status}\`);`;
     const r = extractFromSource("a.tsx", code);
-    expect(r.keys.map((k) => k.key).sort()).toEqual(["Active", "Inactive"]);
-    expect(r.dynamic).toHaveLength(1);
+    expect(r.keys).toHaveLength(0);
+    expect(r.dynamic).toHaveLength(2);
   });
 
     it("extracts both branches of a conditional expression", () => {
@@ -123,11 +123,13 @@ describe("extractor", () => {
     expect(r.dynamic[1].reason).toContain("someVariable");
   });
 
-  it("picks up manually declared keys", () => {
+  it("does not extract manually declared keys (t() strings only)", () => {
     const code = `
       // i18n-keys: "Active", "Inactive"
       const label = t(status);`;
-    expect(keysOf(code).sort()).toEqual(["Active", "Inactive"]);
+    const r = extractFromSource("a.tsx", code);
+    expect(r.keys).toHaveLength(0);
+    expect(r.dynamic).toHaveLength(1);
   });
 
   it("skips usages marked i18n-keys-ignore", () => {

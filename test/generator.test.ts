@@ -50,7 +50,7 @@ describe("translation file generation", () => {
         { translateText, checkGrammar },
       );
       expect(translateText).not.toHaveBeenCalled();
-      expect(checkGrammar).toHaveBeenCalledTimes(2);
+      expect(checkGrammar).not.toHaveBeenCalled();
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

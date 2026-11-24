@@ -11,16 +11,16 @@ const scratchDirectories: string[] = [];
 function createScratchProject(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "i18n-keys-cli-"));
   scratchDirectories.push(cwd);
-  mkdirSync(path.join(cwd, "src"));
+  mkdirSync(path.join(cwd, "ClientApp", "src"), { recursive: true });
   writeFileSync(
-    path.join(cwd, "src", "app.js"),
+    path.join(cwd, "ClientApp", "src", "app.js"),
     't("Save");\nt("Cancel");\n',
   );
   writeFileSync(
     path.join(cwd, "i18n-keys.config.json"),
     JSON.stringify({
       appId: "test",
-      include: ["src/**/*.{js,jsx,ts,tsx}"],
+      include: ["ClientApp/src/**/*.{js,jsx,ts,tsx}"],
     }),
   );
   writeFileSync(
@@ -57,11 +57,14 @@ afterAll(() => {
 });
 
 describe("CLI", () => {
-  it("scans the default src tree without a config file", async () => {
+  it("scans the default ClientApp/src tree without a config file", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "i18n-keys-no-config-"));
     scratchDirectories.push(cwd);
-    mkdirSync(path.join(cwd, "src"));
-    writeFileSync(path.join(cwd, "src", "app.jsx"), "<button>Save</button>");
+    mkdirSync(path.join(cwd, "ClientApp", "src"), { recursive: true });
+    writeFileSync(
+      path.join(cwd, "ClientApp", "src", "app.jsx"),
+      'export default function App(){ const { t } = useTranslation(); return <button>{t("Save")}</button>; }',
+    );
 
     const result = await runCli(cwd, ["scan", "--list"]);
 
@@ -91,6 +94,7 @@ describe("CLI", () => {
     const config = readFileSync(path.join(cwd, "i18n-keys.config.ts"), "utf8");
 
     expect(result.status).toBe(0);
+    expect(config).toContain('include: ["ClientApp/src/**/*.{js,jsx,ts,tsx}"]');
     expect(config).toContain('translationsDir: "Translations"');
     expect(config).not.toContain("api:");
     expect(config).not.toContain("appId:");
@@ -208,7 +212,7 @@ describe("CLI", () => {
         path.join(cwd, "i18n-keys.config.mjs"),
         `export default {
           appId: "test",
-          include: ["src/**/*.js"],
+          include: ["ClientApp/src/**/*.js"],
           api: {
             baseUrl: "http://127.0.0.1:${address.port}",
             getUrl: () => "/translations",
