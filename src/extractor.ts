@@ -63,8 +63,6 @@ function describeDynamic(n: ts.Expression): string {
   return `non-literal expression (${ts.SyntaxKind[n.kind]})`;
 }
 
-const DECLARE_RE = /i18n-keys:\s*(.+)$/;
-const QUOTED_RE = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
 const BRACE_PLACEHOLDER_RE = /\{[^{}]*\}/;
 
 export function extractFromSource(
@@ -194,29 +192,5 @@ export function extractFromSource(
   };
   visit(sf);
 
-  // Keys declared by hand for dynamic usages: // i18n-keys: "Active", "Inactive"
-  const declaredLines = new Set<number>();
-  lines.forEach((ln, i) => {
-    const m = ln.match(DECLARE_RE);
-    if (!m) return;
-    declaredLines.add(i + 1);
-    for (const q of m[1].matchAll(QUOTED_RE)) {
-      const key = q[2].replace(/\\(["'`\\])/g, "$1");
-      if (BRACE_PLACEHOLDER_RE.test(key)) continue;
-      keys.push({
-        key,
-        file,
-        line: i + 1,
-        column: 1,
-        via: "declared",
-      });
-    }
-  });
-
-  // A declare comment on the same line or the line above covers that dynamic call.
-  const unresolved = dynamic.filter(
-    (d) => !declaredLines.has(d.line) && !declaredLines.has(d.line - 1),
-  );
-
-  return { file, keys, dynamic: unresolved };
+  return { file, keys, dynamic };
 }

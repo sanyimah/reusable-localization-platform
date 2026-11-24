@@ -409,6 +409,8 @@ export async function generateTranslationFiles(
   );
 
   const orderedKeys = [...new Set(keys)].sort((a, b) => a.localeCompare(b));
+  const existingEnglishKeys = new Set(Object.keys(english));
+  const newEnglishKeys = orderedKeys.filter((key) => !existingEnglishKeys.has(key));
   for (const key of orderedKeys) {
     if (!Object.prototype.hasOwnProperty.call(english, key)) {
       english[key] = key;
@@ -423,13 +425,13 @@ export async function generateTranslationFiles(
     }
   }
 
-  const progress = createProgress(orderedKeys.length + missingTranslations);
+  const progress = createProgress(newEnglishKeys.length + missingTranslations);
   if (progress.enabled) {
-    renderProgress(progress, orderedKeys.length > 0 ? "Reviewing" : "Translating");
+    renderProgress(progress, newEnglishKeys.length > 0 ? "Reviewing" : "Translating");
   }
 
   try {
-    for (const key of orderedKeys) {
+    for (const key of newEnglishKeys) {
       renderProgress(progress, "Reviewing", "en", key);
       english[key] = await reviewGrammar(
         english[key],

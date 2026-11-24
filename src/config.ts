@@ -21,7 +21,7 @@ export function resolveConfig(raw: ToolkitConfig, cwd: string): ResolvedConfig {
   return {
     ...raw,
     cwd,
-    include: raw.include ?? ["src/**/*.{js,jsx,ts,tsx}"],
+    include: ["ClientApp/src/**/*.{js,jsx,ts,tsx}"],
     exclude: raw.exclude ?? [],
     functions: raw.functions ?? ["t"],
     hooks: raw.hooks ?? ["useTranslation"],

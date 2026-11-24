@@ -21,7 +21,7 @@ import type { ApiAdapter, RegisterSummary, ResolvedConfig } from "./types.js";
 const HELP = `i18n-keys - find i18next keys in source and register missing ones
 
 Usage:
-  i18n-keys generate [options]   Scan t() strings in source, review English (en-GB) in en.json, translate missing strings (each string across all locales), and write locale files
+  i18n-keys generate [options]   Scan t() strings in ClientApp/src, review new English strings in en.json (en-GB), auto-fix grammar, translate missing strings (each string across all locales), and write locale files
   i18n-keys scan  [options]     Discover keys. No network.
   i18n-keys check [options]     Scan + compare with the API. Never writes.
   i18n-keys sync  [options]     Scan + compare + register missing keys.
@@ -48,7 +48,7 @@ Options:
 const TEMPLATE = `import { defineConfig } from "swd-translation-checker";
 
 export default defineConfig({
-  include: ["src/**/*.{js,jsx,ts,tsx}"],
+  include: ["ClientApp/src/**/*.{js,jsx,ts,tsx}"],
   exclude: ["**/*.test.*", "**/*.stories.*"],
   dynamicKeys: "warn", // "warn" | "error" | "ignore"
   translationsDir: "Translations",
@@ -178,7 +178,7 @@ async function main(): Promise<number> {
     }
     writeFileSync(target, TEMPLATE);
     console.log(
-      "Created i18n-keys.config.ts - adjust include/exclude and translationsDir as needed.",
+      "Created i18n-keys.config.ts - adjust exclude and translationsDir as needed (scans ClientApp/src by default).",
     );
     return 0;
   }
