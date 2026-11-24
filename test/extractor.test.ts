@@ -63,27 +63,24 @@ describe("extractor", () => {
     expect(keysOf(code)).toEqual(["Via Object"]);
   });
 
-  it("supports <Trans i18nKey>", () => {
+  it("does not extract <Trans i18nKey>", () => {
     const code = `const x = <Trans i18nKey="Welcome Back" />;`;
-    expect(keysOf(code)).toEqual(["Welcome Back"]);
+    expect(keysOf(code)).toEqual([]);
   });
 
-  it("extracts visible JSX text and common user-facing attributes", () => {
+  it("extracts only title, placeholder, and label JSX attributes", () => {
     const code = `
       const component = (
         <button title="Save" aria-label={"Save changes"}>
           Save Changes
+          <input label="Name" placeholder="Enter name" alt="Ignored" />
         </button>
       );`;
-    expect(keysOf(code).sort()).toEqual([
-      "Save",
-      "Save Changes",
-      "Save changes",
-    ]);
+    expect(keysOf(code).sort()).toEqual(["Enter name", "Name", "Save"]);
   });
 
-  it("skips JSX text fragments next to dynamic expressions", () => {
-    const code = `const component = <span>({count} items)</span>;`;
+  it("does not extract visible JSX text", () => {
+    const code = `const component = <span>Visible text ({count} items)</span>;`;
     expect(keysOf(code)).toEqual([]);
   });
 

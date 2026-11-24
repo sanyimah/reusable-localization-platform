@@ -56,7 +56,7 @@ describe("translation file generation", () => {
     }
   });
 
-  it("reviews English (en-GB) before translation and applies selected corrections", async () => {
+  it("reviews English (en-GB) before translation and applies corrections automatically", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-grammar-"));
     const checkGrammar = vi.fn(async (text: string, language: string) => ({
       matches:
@@ -77,7 +77,6 @@ describe("translation file generation", () => {
       await generateTranslationFiles(["Color"], cwd, "Translations", {
         translateText,
         checkGrammar,
-        chooseCorrection: async () => 0,
       });
 
       expect(checkGrammar).toHaveBeenCalledTimes(1);
@@ -97,17 +96,23 @@ describe("translation file generation", () => {
     }
   });
 
-  it("keeps English text unchanged when a grammar suggestion is declined", async () => {
-    const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-grammar-keep-"));
+  it("skips abbreviation corrections during English grammar review", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-grammar-abbrev-"));
     const checkGrammar = vi.fn(async (text: string, language: string) => ({
       matches:
-        language === "en-GB" && text === "Color"
+        language === "en-GB" && text === "API color"
           ? [
               {
-                message: "British English spelling",
+                message: "Abbreviation suggestion",
                 offset: 0,
+                length: 3,
+                replacements: [{ value: "Api" }],
+              },
+              {
+                message: "British English spelling",
+                offset: 4,
                 length: 5,
-                replacements: [{ value: "Colour" }],
+                replacements: [{ value: "colour" }],
               },
             ]
           : [],
@@ -115,19 +120,18 @@ describe("translation file generation", () => {
     const translateText = vi.fn(async (text: string, locale: string) => `${locale}:${text}`);
 
     try {
-      await generateTranslationFiles(["Color"], cwd, "Translations", {
+      await generateTranslationFiles(["API color"], cwd, "Translations", {
         translateText,
         checkGrammar,
-        chooseCorrection: async () => undefined,
       });
 
-      expect(translateText).toHaveBeenCalledWith("Color", "fr");
+      expect(translateText).toHaveBeenCalledWith("API colour", "fr");
       expect(
         JSON.parse(await readFile(path.join(cwd, "Translations", "en.json"), "utf8")),
-      ).toEqual({ Color: "Color" });
+      ).toEqual({ "API color": "API colour" });
       expect(
         JSON.parse(await readFile(path.join(cwd, "Translations", "fr.json"), "utf8")),
-      ).toEqual({ Color: "fr:Color" });
+      ).toEqual({ "API color": "fr:API colour" });
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

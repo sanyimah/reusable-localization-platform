@@ -1,7 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import readline from "node:readline";
-import { check, replaceAll } from "gramma";
 import translate from "translate";
 
 type TranslateFn = typeof translate & {
@@ -32,6 +30,20 @@ function decodeBasicEntities(value: string): string {
     .replace(/&amp;/g, "&");
 }
 
+function replaceAllText(
+  text: string,
+  corrections: { offset: number; length: number; change: string }[],
+): string {
+  let result = text;
+  for (const correction of [...corrections].sort((a, b) => b.offset - a.offset)) {
+    result =
+      result.slice(0, correction.offset) +
+      correction.change +
+      result.slice(correction.offset + correction.length);
+  }
+  return result;
+}
+
 const LOCALES = [
   { file: "fr", target: "fr", grammar: "fr" },
   { file: "zh", target: "zh", grammar: "zh-CN" },
@@ -42,6 +54,15 @@ const LOCALES = [
 ] as const;
 
 const ENGLISH_GRAMMAR_LANGUAGE = "en-GB";
+
+function isAbbreviation(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  if (/^(?:[A-Za-z]\.)+$/.test(value)) return true;
+  if (/^[A-Z0-9]{2,}$/.test(value)) return true;
+  if (/^[A-Z0-9]+(?:[./-][A-Z0-9]+)+\.?$/.test(value)) return true;
+  return false;
+}
 
 interface GrammarReplacement {
   value: string;
@@ -177,39 +198,7 @@ function chooseCorrection(
     console.log(`[${locale}] ${JSON.stringify(key)}: ${match.message}`);
     return Promise.resolve(undefined);
   }
-  if (!process.stdin.isTTY) {
-    if (progress) clearProgress(progress);
-    console.log(
-      `[${locale}] ${JSON.stringify(key)}: ${match.message} (suggestions not applied: ${suggestions.join(" / ")})`,
-    );
-    return Promise.resolve(undefined);
-  }
-
-  if (progress) {
-    clearProgress(progress);
-    process.stderr.write("\n");
-  }
-  const choices = suggestions
-    .map((suggestion, index) => `${index + 1}) ${suggestion}`)
-    .join("  ");
-  return new Promise((resolve) => {
-    const prompt = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-    prompt.question(
-      `\n[${locale}] ${JSON.stringify(key)}: ${match.message}\n${choices}\nChoose a correction, or 0 to keep it: `,
-      (answer) => {
-        prompt.close();
-        const selected = Number(answer.trim());
-        resolve(
-          Number.isInteger(selected) && selected > 0 && selected <= suggestions.length
-            ? selected - 1
-            : undefined,
-        );
-      },
-    );
-  });
+  return Promise.resolve(0);
 }
 
 async function reviewGrammar(
@@ -243,17 +232,21 @@ async function reviewGrammar(
       console.log(`[${locale}] ${JSON.stringify(key)}: ${match.message}`);
       continue;
     }
+    const matchedText = text.slice(match.offset, match.offset + match.length);
+    if (isAbbreviation(matchedText)) continue;
     const selected = services.chooseCorrection
       ? await services.chooseCorrection(locale, key, { ...match, replacements })
       : await chooseCorrection(locale, key, { ...match, replacements }, progress);
     if (selected === undefined) continue;
+    const change = replacements[selected]?.value;
+    if (typeof change !== "string" || !change.length) continue;
     corrections.push({
       offset: match.offset,
       length: match.length,
-      change: replacements[selected].value,
+      change,
     });
   }
-  return corrections.length ? replaceAll(text, corrections) : text;
+  return corrections.length ? replaceAllText(text, corrections) : text;
 }
 
 function configureTranslateFromEnv(): void {
@@ -302,6 +295,57 @@ async function translateWithMyMemory(text: string, target: string): Promise<stri
   return decodeBasicEntities(translatedText);
 }
 
+async function checkWithLanguageTool(
+  text: string,
+  language: string,
+): Promise<GrammarResult> {
+  const endpoint =
+    process.env.LANGUAGETOOL_URL?.trim() ||
+    process.env.LANGUAGETOOL_API_URL?.trim() ||
+    "https://api.languagetool.org/v2/check";
+  const response =
+    typeof globalThis.fetch === "function"
+      ? await globalThis.fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ text, language }).toString(),
+        })
+      : await (await import("node-fetch")).default(endpoint as any, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ text, language }).toString(),
+        } as any);
+  const raw = await (response as { text: () => Promise<string> }).text();
+  let body: any;
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(`Invalid LanguageTool response: ${raw.slice(0, 120)}`);
+  }
+  if (!(response as { ok?: boolean }).ok) {
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : typeof body?.error === "string"
+          ? body.error
+          : `HTTP ${(response as { status?: number }).status ?? "error"}`;
+    throw new Error(message);
+  }
+  const matches = Array.isArray(body?.matches) ? body.matches : [];
+  return {
+    matches: matches.map((match: any) => ({
+      message: typeof match?.message === "string" ? match.message : "Grammar issue",
+      offset: Number.isInteger(match?.offset) ? match.offset : 0,
+      length: Number.isInteger(match?.length) ? match.length : 0,
+      replacements: Array.isArray(match?.replacements)
+        ? match.replacements
+            .map((replacement: any) => ({ value: String(replacement?.value ?? "") }))
+            .filter((replacement: { value: string }) => replacement.value.length > 0)
+        : [],
+    })),
+  };
+}
+
 async function writeLocaleFiles(
   outputDirectory: string,
   englishFile: string,
@@ -348,7 +392,7 @@ export async function generateTranslationFiles(
       }),
     checkGrammar:
       services?.checkGrammar ??
-      (async (text, language) => (await check(text, { language })) as GrammarResult),
+      (async (text, language) => checkWithLanguageTool(text, language)),
     chooseCorrection: services?.chooseCorrection,
     recoverTranslation: services?.recoverTranslation,
   };

@@ -7,14 +7,13 @@ database.
 
 ## Features
 
-- Finds keys in `t("...")`, `i18n.t("...")`, and `<Trans i18nKey="..." />`.
-- Finds visible JSX text and common user-facing props such as `title`,
-  `label`, `placeholder`, `alt`, and `aria-label`.
+- Finds keys in `t("...")` / i18n translation calls and in JSX `title`,
+  `placeholder`, and `label` attribute values.
 - Reports dynamic key usages that cannot be resolved statically.
 - Writes `Translations/en.json`, `fr.json`, `zh.json`, `es.json`, `de.json`,
   `it.json`, and `pt.json`.
 - Reviews English strings in `en.json` for British English (`en-GB`) before
-  translating and prompts before applying corrections.
+  translating and automatically applies corrections (skipping abbreviations).
 - Preserves existing translations and translates only missing entries.
 
 ## Requirements
@@ -44,13 +43,12 @@ optional. It creates one JSON file per locale in `Translations/`. English text
 is used as the key in every locale file, and as the value in `en.json`.
 
 When you run `generate`, it first checks the English strings for the scanned
-keys in `en.json` using Gramma's default LanguageTool service with British
-English (`en-GB`). Only `en.json` is grammar-checked; `fr.json`, `zh.json`,
-`es.json`, `de.json`, `it.json`, and `pt.json` are not grammar-checked. Flagged
-English issues are shown in the terminal: in an interactive run you can choose
-a suggested correction or keep the text as-is, and corrections are applied only
-after an explicit selection. In a non-interactive run, suggestions are printed
-but not applied.
+keys in `en.json` using the LanguageTool service with British English (`en-GB`,
+public API by default) and applies suggested corrections automatically.
+Abbreviations (for example acronyms/initialisms) are skipped. Only `en.json`
+is grammar-checked; `fr.json`, `zh.json`, `es.json`, `de.json`, `it.json`, and
+`pt.json` are not grammar-checked. You can set `LANGUAGETOOL_URL` (or
+`LANGUAGETOOL_API_URL`) to use a different LanguageTool endpoint.
 
 After the English review, new translations are sent through MyMemory by default
 (`api.mymemory.translated.net`) for any missing non-English locale values.
@@ -117,9 +115,9 @@ adapter; they are separate from the per-locale generator.
 ## Key detection
 
 The scanner recognizes calls to `t`, `i18n.t`, and `i18next.t`, including `t`
-or `i18n` obtained from `useTranslation()`. It also recognizes `Trans`
-components with an `i18nKey` attribute, visible JSX text, and common
-user-facing JSX attributes.
+or `i18n` obtained from `useTranslation()`. It also extracts static string
+values from JSX `title`, `placeholder`, and `label` attributes. JSX text,
+`<Trans i18nKey>` values, and other JSX attributes are not scanned.
 
 Static string literals, string concatenations, arrays of keys, and both
 branches of a conditional expression are collected. Expressions that depend

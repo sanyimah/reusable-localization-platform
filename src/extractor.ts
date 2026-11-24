@@ -66,18 +66,7 @@ function describeDynamic(n: ts.Expression): string {
 const DECLARE_RE = /i18n-keys:\s*(.+)$/;
 const QUOTED_RE = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
 const BRACE_PLACEHOLDER_RE = /\{[^{}]*\}/;
-const UI_TEXT_ATTRIBUTES = new Set([
-  "alt",
-  "aria-description",
-  "aria-label",
-  "caption",
-  "description",
-  "helpertext",
-  "label",
-  "placeholder",
-  "title",
-  "tooltip",
-]);
+const UI_TEXT_ATTRIBUTES = new Set(["label", "placeholder", "title"]);
 
 export function extractFromSource(
   file: string,
@@ -194,22 +183,6 @@ export function extractFromSource(
 
   // Pass 2: collect calls.
   const visit = (node: ts.Node): void => {
-    if (ts.isJsxText(node)) {
-      const parent = node.parent;
-      const siblings = ts.isJsxElement(parent)
-        ? parent.children
-        : ts.isJsxFragment(parent)
-          ? parent.children
-          : undefined;
-      const index = siblings?.indexOf(node) ?? -1;
-      const adjacentToExpression =
-        index >= 0 &&
-        ((index > 0 && ts.isJsxExpression(siblings![index - 1])) ||
-          (index + 1 < siblings!.length &&
-            ts.isJsxExpression(siblings![index + 1])));
-      if (!adjacentToExpression) addVisibleText(node.text, node, "JSX text");
-    }
-
     if (ts.isJsxAttribute(node)) {
       const name = node.name.getText(sf).toLowerCase();
       if (UI_TEXT_ATTRIBUTES.has(name) && node.initializer) {
@@ -239,26 +212,6 @@ export function extractFromSource(
       }
     }
 
-    if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
-      if (trans.has(node.tagName.getText(sf))) {
-        for (const p of node.attributes.properties) {
-          if (
-            ts.isJsxAttribute(p) &&
-            p.name.getText(sf) === "i18nKey" &&
-            p.initializer
-          ) {
-            if (ts.isStringLiteral(p.initializer)) {
-              addKey(p.initializer.text, node, "Trans");
-            } else if (
-              ts.isJsxExpression(p.initializer) &&
-              p.initializer.expression
-            ) {
-              handleArg(p.initializer.expression, "Trans", node);
-            }
-          }
-        }
-      }
-    }
     ts.forEachChild(node, visit);
   };
   visit(sf);
