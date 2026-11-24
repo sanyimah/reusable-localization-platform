@@ -368,7 +368,6 @@ async function writeLocaleFiles(
     await writeFile(file, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
   }
 }
-
 export async function generateTranslationFiles(
   keys: Iterable<string>,
   cwd: string,
