@@ -218,9 +218,10 @@ async function reviewGrammar(
       clearProgress(progress);
       process.stderr.write("\n");
     }
-    throw new Error(
-      `Grammar check failed for ${locale} ${JSON.stringify(key)}: ${error instanceof Error ? error.message : String(error)}`,
+    console.warn(
+      `[${locale}] Skipping grammar check for ${JSON.stringify(key)}: ${error instanceof Error ? error.message : String(error)}`,
     );
+    return text;
   }
   const corrections: { offset: number; length: number; change: string }[] = [];
   for (const match of result.matches) {
@@ -458,6 +459,7 @@ export async function generateTranslationFiles(
       if (aborted) break;
       const sourceText = english[key];
       for (const locale of LOCALES) {
+        if (aborted) break;
         const translations = targetFiles.get(locale)!;
         if (!Object.prototype.hasOwnProperty.call(translations, key)) {
           let translated: string | undefined;

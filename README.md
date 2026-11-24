@@ -7,14 +7,13 @@ database.
 
 ## Features
 
-- Finds keys in `t("...")` / i18n translation calls and in JSX `title`,
-  `placeholder`, and `label` attribute values.
+- Finds keys only in `t("...")` / `i18n.t()` / `i18next.t()` translation calls.
 - Reports dynamic key usages that cannot be resolved statically.
 - Writes `Translations/en.json`, `fr.json`, `zh.json`, `es.json`, `de.json`,
   `it.json`, and `pt.json`.
 - Reviews English strings in `en.json` for British English (`en-GB`) before
   translating and automatically applies corrections (skipping abbreviations).
-- Preserves existing translations and translates only missing entries.
+- Preserves existing translations and translates only missing entries (each string across all locales before the next string).
 
 ## Requirements
 
@@ -55,10 +54,11 @@ After the English review, new translations are sent through MyMemory by default
 Translations are generated from the reviewed English text. In an interactive
 terminal, `generate` first offers translation setup: use the default MyMemory
 service, configure a custom engine/API key/URL for this run, or skip
-auto-translation and fill missing locale values with English placeholders. It
-then asks before sending text unless `--yes` is used. If a translation fails
-interactively, you can retry, reconfigure, skip that string, skip all
-remaining, or abort and save progress.
+auto-translation and fill missing locale values with English placeholders. This
+setup choice runs automatically as part of `generate`; the CLI does not prompt
+for separate permission before sending text to the configured grammar/translation
+services. If a translation fails interactively, you can retry, reconfigure,
+skip that string, skip all remaining, or abort and save progress.
 
 You can set `MYMEMORY_EMAIL` (or `TRANSLATE_EMAIL`) to include a contact email
 in MyMemory requests. To use a different translation provider via the
@@ -93,9 +93,6 @@ need `appId`, API credentials, or an API section.
 # Generate or update locale JSON files.
 npx i18n-keys generate
 
-# Explicitly allow external translation/grammar services in CI.
-npx i18n-keys generate --yes
-
 # Scan and list discovered text without translating.
 npx i18n-keys scan
 
@@ -115,9 +112,9 @@ adapter; they are separate from the per-locale generator.
 ## Key detection
 
 The scanner recognizes calls to `t`, `i18n.t`, and `i18next.t`, including `t`
-or `i18n` obtained from `useTranslation()`. It also extracts static string
-values from JSX `title`, `placeholder`, and `label` attributes. JSX text,
-`<Trans i18nKey>` values, and other JSX attributes are not scanned.
+or `i18n` obtained from `useTranslation()`. Only strings passed to these
+translation calls are extracted; JSX text, JSX attributes (including `title`,
+`placeholder`, and `label`), and `<Trans i18nKey>` values are not scanned.
 
 Static string literals, string concatenations, arrays of keys, and both
 branches of a conditional expression are collected. Expressions that depend
@@ -142,7 +139,7 @@ filter dynamic usages by regular expression.
 ```text
 --config <file>   Use a specific config file
 --translations-dir <dir> Output directory for generated locale files
---yes             (generate) Allow external services; (sync --apply) skip prompt
+--yes             (sync --apply) Skip the registration confirmation prompt
 --since <ref>     Scan only files changed since a git ref
 --staged          Scan only git-staged files
 --apply           (sync) Send registration requests; otherwise sync is a dry run

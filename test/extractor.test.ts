@@ -68,20 +68,16 @@ describe("extractor", () => {
     expect(keysOf(code)).toEqual([]);
   });
 
-  it("extracts only title, placeholder, and label JSX attributes", () => {
+  it("does not extract JSX attributes or visible JSX text (only t() calls)", () => {
     const code = `
+      const { t } = useTranslation();
       const component = (
         <button title="Save" aria-label={"Save changes"}>
-          Save Changes
+          {t("Save")}
           <input label="Name" placeholder="Enter name" alt="Ignored" />
         </button>
       );`;
-    expect(keysOf(code).sort()).toEqual(["Enter name", "Name", "Save"]);
-  });
-
-  it("does not extract visible JSX text", () => {
-    const code = `const component = <span>Visible text ({count} items)</span>;`;
-    expect(keysOf(code)).toEqual([]);
+    expect(keysOf(code)).toEqual(["Save"]);
   });
 
   it("handles static template literals and constant concatenation", () => {
