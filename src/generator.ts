@@ -430,6 +430,8 @@ export async function generateTranslationFiles(
     renderProgress(progress, newEnglishKeys.length > 0 ? "Reviewing" : "Translating");
   }
 
+  await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
+
   try {
     for (const key of newEnglishKeys) {
       renderProgress(progress, "Reviewing", "en", key);
@@ -480,11 +482,6 @@ export async function generateTranslationFiles(
                   `[${locale.file}] Using English text for ${JSON.stringify(key)} (translation skipped).`,
                 );
                 break;
-              }
-              try {
-                await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
-              } catch {
-                // Best effort: preserve progress already saved before aborting.
               }
               throw new Error(
                 `Translation failed for ${locale.file} ${JSON.stringify(key)}: ${err.message}`,

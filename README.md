@@ -41,6 +41,9 @@ npx i18n-keys generate
 `generate` scans `src/**/*.{js,jsx,ts,tsx}` by default; a config file is
 optional. It creates one JSON file per locale in `Translations/`. English text
 is used as the key in every locale file, and as the value in `en.json`.
+The output directory and locale files are created before grammar or translation
+requests start, then updated after each reviewed English string and each
+completed translation. If a later request fails, completed work remains on disk.
 
 New translations are sent through MyMemory by default (`api.mymemory.translated.net`),
 and generated text is checked through Gramma's default LanguageTool service. In
