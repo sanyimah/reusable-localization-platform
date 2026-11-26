@@ -100,3 +100,17 @@ export async function writeJsonReport(
     ),
   );
 }
+
+export async function writeMissingTranslations(
+  file: string,
+  missing: string[],
+): Promise<void> {
+  const languages = ["en", "fr", "zh", "es", "de", "it", "pt"];
+  const translations: Record<string, Record<string, string>> = {};
+  for (const language of languages) {
+    translations[language] = Object.fromEntries(
+      missing.map((key) => [key, language === "en" ? key : ""]),
+    );
+  }
+  await writeFile(file, JSON.stringify(translations, null, 2));
+}

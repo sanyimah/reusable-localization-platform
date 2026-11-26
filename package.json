@@ -1,10 +1,35 @@
 {
   "name": "swd-translation-checker",
-  "version": "0.1.1",
-  "description": "Discovers i18next keys in React source, diffs them against your existing translation API, and registers the missing ones.",
+  "version": "0.1.7",
+  "description": "Scans client-side UI text and generates grammar-reviewed per-language JSON translation files.",
+  "keywords": [
+    "i18n",
+    "i18next",
+    "translations",
+    "react",
+    "cli",
+    "google-translate",
+    "grammar"
+  ],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanyimah/reusable-localization-platform.git"
+  },
+  "homepage": "https://github.com/sanyimah/reusable-localization-platform#readme",
+  "bugs": {
+    "url": "https://github.com/sanyimah/reusable-localization-platform/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "i18n-keys": "dist/cli.js"
   },
@@ -12,23 +37,30 @@
     "dist",
     "README.md"
   ],
+  "sideEffects": false,
   "engines": {
-    "node": ">=18"
+    "node": ">=16"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "demo": "npm run build && node demo/test-api.mjs --sync",
     "demo:sync": "npm run build && cd demo && node ../dist/cli.js sync --apply --yes",
     "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "fast-glob": "^3.3.2",
     "jiti": "^2.4.2",
-    "typescript": "^5.6.0"
+    "node-fetch": "^3.3.2",
+    "translate": "^3.1.1"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }
 }

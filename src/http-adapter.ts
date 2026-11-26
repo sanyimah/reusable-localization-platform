@@ -1,4 +1,6 @@
 import type { ApiAdapter, BatchOutcome, HttpApiConfig, HttpResponseLike } from "./types.js";
+import { parseExisting } from "./parse.js";
+import nodeFetch from "node-fetch";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -17,14 +19,13 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
   const batchSize = cfg.batchSize ?? 1;
   const concurrency = cfg.concurrency ?? 3;
 
-  for (const [name, value, minimum] of [
-    ["retries", retries, 0],
-    ["batchSize", batchSize, 1],
-    ["concurrency", concurrency, 1],
-  ] as const) {
+  for (const [name, value, minimum] of [["retries", retries, 0], ["concurrency", concurrency, 1]] as const) {
     if (!Number.isSafeInteger(value) || value < minimum) {
       throw new Error(`API ${name} must be an integer greater than or equal to ${minimum}.`);
     }
+  }
+  if (batchSize !== undefined && (!Number.isSafeInteger(batchSize) || batchSize < 1)) {
+    throw new Error("API batchSize must be an integer greater than or equal to 1.");
   }
 
   const postPath = (appId: string) =>
@@ -48,7 +49,7 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
-        const res = await fetch(url, {
+        const requestOptions = {
           method,
           headers: {
             Accept: "application/json",
@@ -57,7 +58,10 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
           },
           body: payload,
           signal: ctrl.signal,
-        });
+        };
+        const res = typeof globalThis.fetch === "function"
+          ? await globalThis.fetch(url, requestOptions)
+          : await nodeFetch(url, requestOptions);
         const text = await res.text();
         let parsed: unknown = text;
         try {
@@ -95,7 +99,9 @@ export function createHttpAdapter(cfg: HttpApiConfig): ApiAdapter {
       if (res.status < 200 || res.status >= 300) {
         throw new Error(`GET ${p} failed with HTTP ${res.status}: ${snippet(res.body)}`);
       }
-      const keys = cfg.parseExisting(res.body);
+      const keys = cfg.parseExisting
+        ? cfg.parseExisting(res.body)
+        : parseExisting(res.body, cfg.baseLang ?? "en");
       if (!Array.isArray(keys) || [...keys].some((k) => typeof k !== "string")) {
         throw new Error("parseExisting() must return string[] (a flat list of existing keys).");
       }

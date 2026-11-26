@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { existsSync, writeFileSync } from "node:fs";
+import dotenv from "dotenv";
 import path from "node:path";
-import readline from "node:readline/promises";
+import readline from "node:readline";
 import { changedFiles, scanProject } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { diffKeys } from "./differ.js";
@@ -11,6 +12,7 @@ import {
   printDiff,
   printRegister,
   printScan,
+  writeMissingTranslations,
   writeJsonReport,
 } from "./report.js";
 import { registerKeys } from "./registrar.js";
@@ -19,6 +21,7 @@ import type { ApiAdapter, RegisterSummary, ResolvedConfig } from "./types.js";
 const HELP = `i18n-keys - find i18next keys in source and register missing ones
 
 Usage:
+  i18n-keys generate [options]   Scan UI text, review English (en-GB) in en.json, translate missing strings, and write locale files
   i18n-keys scan  [options]     Discover keys. No network.
   i18n-keys check [options]     Scan + compare with the API. Never writes.
   i18n-keys sync  [options]     Scan + compare + register missing keys.
@@ -26,54 +29,42 @@ Usage:
 
 Options:
   --config <file>   Config path (default: i18n-keys.config.*)
-  --since <ref>     Only scan files changed since a git ref (e.g. origin/main)
-  --staged          Only scan git-staged files
+  --yes             (generate) Allow sending strings to translation and LanguageTool services
+  --translations-dir <dir> Output directory for generated locale JSON files
+  --since <ref>     Only scan files changed since a git ref (requires a git repo)
+  --staged          Only scan git-staged files (requires a git repo)
   --apply           (sync) Actually POST. Without it, sync is a dry run.
   --limit <n>       (sync) Register at most n keys this run
-  --yes             (sync --apply) Skip the confirmation prompt
+  --yes             (sync --apply) Skip the TTY confirmation prompt
   --mock            Use the local JSON mock instead of the real API
-  --fail-on-missing (check, sync) Exit 1 if GET found missing keys, even after sync
+  --fail-on-missing (check, sync) Exit 1 if keys are still missing afterwards
   --json <file>     Write a JSON report
+  --export-missing <file> Write missing keys as en/fr/zh/es/de/it/pt dictionaries
   --list            (scan) Print every discovered key
   --verbose         Don't truncate long lists
-  --locations       (scan --list) Show file:line for each key
+  --locations       (scan --list) Show file:line for each keyks
   --filter <text>   (scan --list) Only keys containing text
 `;
 
 const TEMPLATE = `import { defineConfig } from "swd-translation-checker";
 
 export default defineConfig({
-  appId: "your-app-id",
   include: ["src/**/*.{js,jsx,ts,tsx}"],
   exclude: ["**/*.test.*", "**/*.stories.*"],
   dynamicKeys: "warn", // "warn" | "error" | "ignore"
-
-  api: {
-    baseUrl: process.env.I18N_API_URL!,
-    headers: (): Record<string, string> => {
-      const token = process.env.I18N_API_TOKEN;
-      return token ? { Authorization: \`Bearer \${token}\` } : {};
-    },
-
-    // Example GET response: { "keys": ["Save"] }. Adapt this to your API.
-    parseExisting: (body) => {
-      const keys = (body as { keys?: unknown } | null)?.keys;
-      if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) {
-        throw new Error("Expected the GET response to contain a keys array of strings");
-      }
-      return keys;
-    },
-
-    // Example POST body: { "appId": "your-app-id", "keys": ["Save"] }.
-    // Adapt this to your API before running sync --apply.
-    buildPayload: (keys, appId) => ({ appId, keys }),
-
-    batchSize: 1,
-  },
+  translationsDir: "Translations",
 });
 `;
 
-const VALUE_FLAGS = new Set(["config", "since", "limit", "json", "filter"]);
+const VALUE_FLAGS = new Set([
+  "config",
+  "since",
+  "limit",
+  "json",
+  "filter",
+  "export-missing",
+  "translations-dir",
+]);
 
 function parseArgs(argv: string[]) {
   const flags: Record<string, string | boolean> = {};
@@ -108,13 +99,60 @@ function pickAdapter(cfg: ResolvedConfig, useMock: boolean): ApiAdapter {
 }
 
 async function confirm(question: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(/^y(es)?$/i.test(answer.trim()));
+    });
   });
-  const answer = await rl.question(question);
-  rl.close();
-  return /^y(es)?$/i.test(answer.trim());
+}
+
+async function ask(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function configureTranslationSetup(): Promise<{ skipTranslation: boolean }> {
+  const choice = (
+    await ask(
+      "\nTranslation setup: [Enter] default MyMemory, [c] configure custom engine/API key, [s] skip auto-translation (use English placeholders): ",
+    )
+  ).toLowerCase();
+
+  if (choice === "s" || choice === "skip") {
+    console.log("Auto-translation disabled for this run; missing locale values will use English text.");
+    return { skipTranslation: true };
+  }
+
+  if (choice === "c" || choice === "configure") {
+    const engine = await ask("Translate engine (google/deepl/libre/yandex) [google]: ");
+    const key = await ask("Translate API key (leave blank for none): ");
+    const url = await ask("Translate URL (optional, leave blank for default): ");
+    if (engine) process.env.TRANSLATE_ENGINE = engine;
+    if (key) process.env.TRANSLATE_KEY = key;
+    if (url) process.env.TRANSLATE_URL = url;
+    if (engine || key || url) {
+      console.log(
+        `Custom translation service configured${engine ? ` (engine: ${engine})` : ""}${key ? " with API key" : ""}.`,
+      );
+    } else {
+      console.log("No custom translation settings entered; using default MyMemory.");
+    }
+  }
+
+  return { skipTranslation: false };
 }
 
 async function main(): Promise<number> {
@@ -127,11 +165,10 @@ async function main(): Promise<number> {
     return command ? 0 : 1;
   }
 
-  // Load .env if present (Node 20.12+). Ignore if unavailable.
-  try {
-    (process as unknown as { loadEnvFile?: () => void }).loadEnvFile?.();
-  } catch {
-    /* no .env - fine */
+  const envFile = path.join(cwd, ".env");
+  if (existsSync(envFile)) {
+    const result = dotenv.config({ path: envFile });
+    if (result.error) throw result.error;
   }
 
   if (command === "init") {
@@ -142,18 +179,34 @@ async function main(): Promise<number> {
     }
     writeFileSync(target, TEMPLATE);
     console.log(
-      "Created i18n-keys.config.ts - fill in appId, parseExisting and buildPayload.",
+      "Created i18n-keys.config.ts - adjust include/exclude and translationsDir as needed.",
     );
     return 0;
   }
 
-  if (!["scan", "check", "sync"].includes(command)) {
+  if (!["generate", "scan", "check", "sync"].includes(command)) {
     console.error(`Unknown command: ${command}\n`);
     console.log(HELP);
     return 2;
   }
 
-  const cfg = await loadConfig(cwd, flags.config as string | undefined);
+  const exportMissingFile = flags["export-missing"];
+  if (exportMissingFile !== undefined) {
+    if (typeof exportMissingFile !== "string") {
+      console.error("--export-missing requires a file path.");
+      return 2;
+    }
+    if (!["check", "sync"].includes(command)) {
+      console.error("--export-missing can only be used with check or sync.");
+      return 2;
+    }
+  }
+
+  const cfg = await loadConfig(
+    cwd,
+    flags.config as string | undefined,
+    command === "scan" || command === "generate",
+  );
 
   // Incremental scan: only affects which files are *scanned*; the DB comparison is always full.
   let restrict: Set<string> | undefined;
@@ -161,13 +214,79 @@ async function main(): Promise<number> {
   else if (typeof flags.since === "string")
     restrict = changedFiles(cwd, { since: flags.since });
 
-  console.log(`[${cfg.appId}] ${command}${restrict ? " (incremental)" : ""}`);
+  console.log(`[${cfg.appId ?? "local"}] ${command}${restrict ? " (incremental)" : ""}`);
   const scan = await scanProject(cfg, restrict);
   printScan(scan, cfg, !!flags.verbose);
 
   let exitCode = 0;
   if (cfg.dynamicKeys === "error" && scan.dynamic.length) exitCode = 1;
   if (scan.issues.some((i) => i.level === "error")) exitCode = 1;
+
+  if (command === "generate") {
+    const keys = [...scan.keys.keys()];
+    let skipTranslation = false;
+    if (keys.length && process.stdin.isTTY && !flags.yes) {
+      ({ skipTranslation } = await configureTranslationSetup());
+    }
+
+    if (keys.length && !flags.yes) {
+      if (!process.stdin.isTTY) {
+        console.error(
+          "Generation sends extracted strings to external translation/grammar services. Re-run with --yes to allow this in a non-interactive terminal.",
+        );
+        return 2;
+      }
+      const consentMessage = skipTranslation
+        ? "\nSend English strings from en.json to LanguageTool for British English (en-GB) grammar review? Auto-translation is skipped for this run. (y/N) "
+        : "\nSend English strings to LanguageTool for British English (en-GB) grammar review, and new strings to translation services to generate locale files? (y/N) ";
+      const ok = await confirm(consentMessage);
+      if (!ok) {
+        console.log("Aborted.");
+        return 1;
+      }
+    }
+
+    const translationsDir =
+      typeof flags["translations-dir"] === "string"
+        ? flags["translations-dir"]
+        : cfg.translationsDir;
+    const { generateTranslationFiles } = await import("./generator.js");
+    let skipAllTranslations = false;
+    const services = skipTranslation
+      ? {
+          translateText: async (text: string) => text,
+        }
+      : process.stdin.isTTY
+        ? {
+            recoverTranslation: async (error: Error, key: string, locale: string) => {
+              if (skipAllTranslations) return "skip" as const;
+              console.error(
+                `\nTranslation failed for ${locale} ${JSON.stringify(key)}: ${error.message}`,
+              );
+              const action = (
+                await ask(
+                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [k] skip all remaining (use English), [a]bort and save progress: ",
+                )
+              ).toLowerCase();
+              if (action === "r" || action === "retry") return "retry" as const;
+              if (action === "k" || action === "skip-all" || action === "all") {
+                skipAllTranslations = true;
+                console.log("Skipping all remaining translation failures for this run (English placeholders will be used).");
+                return "skip" as const;
+              }
+              if (action === "s" || action === "skip") return "skip" as const;
+              if (action === "c" || action === "configure") {
+                await configureTranslationSetup();
+                return "configure" as const;
+              }
+              return "abort" as const;
+            },
+          }
+        : undefined;
+    await generateTranslationFiles(keys, cwd, translationsDir, services);
+    console.log(`\nLocale files written to ${translationsDir}.`);
+    return exitCode;
+  }
 
   if (command === "scan") {
     if (flags.list) {
@@ -189,10 +308,14 @@ async function main(): Promise<number> {
   }
 
   // check / sync: need the API from here on.
+  if (!cfg.appId) {
+    throw new Error("Config error: `appId` is required for check/sync commands.");
+  }
+  const appId = cfg.appId;
   const adapter = pickAdapter(cfg, !!flags.mock);
   let existingKeys: string[];
   try {
-    existingKeys = await adapter.fetchExisting(cfg.appId);
+    existingKeys = await adapter.fetchExisting(appId);
   } catch (err) {
     console.error(
       `\nCould not fetch existing keys; aborting without registering anything.\n  ${(err as Error).message}`,
@@ -203,11 +326,17 @@ async function main(): Promise<number> {
   const { existing, missing } = diffKeys(scan.keys.keys(), existingKeys);
   printDiff(existing, missing, !!flags.verbose);
 
+  if (typeof exportMissingFile === "string") {
+    const outputFile = path.resolve(cwd, exportMissingFile);
+    await writeMissingTranslations(outputFile, missing);
+    console.log(`\nMissing translations written to ${exportMissingFile}`);
+  }
+
   const reportFile = (flags.json as string | undefined) ?? cfg.reportFile;
   const report = async (applied: boolean, summary?: RegisterSummary) => {
     if (reportFile) {
       await writeJsonReport(path.resolve(cwd, reportFile), {
-        appId: cfg.appId,
+        appId,
         command,
         applied,
         scan,
@@ -251,13 +380,13 @@ async function main(): Promise<number> {
     const first = toSend.slice(0, Math.max(adapter.batchSize ?? 1, 1));
     console.log("\nFirst payload that will be sent:");
     console.log(
-      JSON.stringify(adapter.previewPayload(first, cfg.appId), null, 2),
+      JSON.stringify(adapter.previewPayload(first, appId), null, 2),
     );
   }
 
   if (apply && process.stdin.isTTY && !flags.yes) {
     const ok = await confirm(
-      `\nRegister ${toSend.length} key(s) for "${cfg.appId}"? (y/N) `,
+      `\nRegister ${toSend.length} key(s) for "${appId}"? (y/N) `,
     );
     if (!ok) {
       console.log("Aborted.");
@@ -265,28 +394,29 @@ async function main(): Promise<number> {
     }
   }
 
-  const summary = await registerKeys(adapter, cfg.appId, missing, {
+  const summary = await registerKeys(adapter, appId, missing, {
     limit,
     apply,
   });
   printRegister(summary, apply);
   await report(apply, summary);
-  if (summary.failed.length) exitCode = 1;
-  else if (flags["fail-on-missing"]) {
-    if (apply && !summary.skippedByLimit.length) {
-      console.log("\nMissing keys were found and handled. Rerun to check again.");
-    }
+  const stillMissing = !apply || summary.skippedByLimit.length > 0;
+  if (summary.failed.length || (flags["fail-on-missing"] && stillMissing)) {
     exitCode = 1;
+  } else if (flags["fail-on-missing"] && apply) {
+    console.log("\nAll missing keys were registered.");
   }
   return exitCode;
 }
 
 main().then(
-  (code) => process.exit(code),
+  (code) => {
+    process.exitCode = code;
+  },
   (err) => {
     console.error(
       `\nError: ${err instanceof Error ? err.message : String(err)}`,
     );
-    process.exit(2);
+    process.exitCode = 2;
   },
 );
