@@ -1,20 +1,20 @@
 # swd-translation-checker
 
 Scan a client app for translatable UI text, generate per-language JSON files,
-review English strings for British English, and translate new entries. The
-`generate` workflow does not connect to your app's translation API or
+translate new entries with Google Translate, and review grammar suggestions.
+The `generate` workflow does not connect to your app's translation API or
 database.
 
 ## Features
 
-- Finds keys in `t("...")` / i18n translation calls and in JSX `title`,
-  `placeholder`, and `label` attribute values.
+- Finds keys in `t("...")`, `i18n.t("...")`, and `<Trans i18nKey="..." />`.
+- Finds visible JSX text and common user-facing props such as `title`,
+  `label`, `placeholder`, `alt`, and `aria-label`.
 - Reports dynamic key usages that cannot be resolved statically.
 - Writes `Translations/en.json`, `fr.json`, `zh.json`, `es.json`, `de.json`,
   `it.json`, and `pt.json`.
-- Reviews English strings in `en.json` for British English (`en-GB`) before
-  translating and automatically applies corrections (skipping abbreviations).
 - Preserves existing translations and translates only missing entries.
+- Prompts before applying grammar suggestions.
 
 ## Requirements
 
@@ -41,24 +41,19 @@ npx i18n-keys generate
 `generate` scans `src/**/*.{js,jsx,ts,tsx}` by default; a config file is
 optional. It creates one JSON file per locale in `Translations/`. English text
 is used as the key in every locale file, and as the value in `en.json`.
+The output directory and locale files are created before grammar or translation
+requests start, then updated after each reviewed English string and each
+completed translation. If a later request fails, completed work remains on disk.
 
-When you run `generate`, it first checks the English strings for the scanned
-keys in `en.json` using the LanguageTool service with British English (`en-GB`,
-public API by default) and applies suggested corrections automatically.
-Abbreviations (for example acronyms/initialisms) are skipped. Only `en.json`
-is grammar-checked; `fr.json`, `zh.json`, `es.json`, `de.json`, `it.json`, and
-`pt.json` are not grammar-checked. You can set `LANGUAGETOOL_URL` (or
-`LANGUAGETOOL_API_URL`) to use a different LanguageTool endpoint.
-
-After the English review, new translations are sent through MyMemory by default
-(`api.mymemory.translated.net`) for any missing non-English locale values.
-Translations are generated from the reviewed English text. In an interactive
-terminal, `generate` first offers translation setup: use the default MyMemory
-service, configure a custom engine/API key/URL for this run, or skip
-auto-translation and fill missing locale values with English placeholders. It
-then asks before sending text unless `--yes` is used. If a translation fails
-interactively, you can retry, reconfigure, skip that string, skip all
-remaining, or abort and save progress.
+New translations are sent through MyMemory by default (`api.mymemory.translated.net`),
+and generated text is checked through Gramma's default LanguageTool service. In
+an interactive terminal, `generate` first offers translation setup: use the
+default MyMemory service, configure a custom engine/API key/URL for this run, or
+skip auto-translation and fill missing locale values with English placeholders.
+It then asks before sending text unless `--yes` is used. If a translation fails
+interactively, you can retry, reconfigure, skip that string, or abort. Grammar
+corrections are shown one at a time and are applied only when selected. In a
+non-interactive run, suggestions are printed but not applied.
 
 You can set `MYMEMORY_EMAIL` (or `TRANSLATE_EMAIL`) to include a contact email
 in MyMemory requests. To use a different translation provider via the
@@ -66,7 +61,9 @@ in MyMemory requests. To use a different translation provider via the
 `TRANSLATE_URL` before running, or choose "configure" in the interactive setup.
 
 Existing locale values are preserved on reruns; only missing keys are
-translated. Review generated translations before shipping.
+translated. Current locale values are grammar-checked on each run, but
+corrections are applied only after an explicit selection. Review generated
+translations before shipping.
 
 ## Configure
 
@@ -103,21 +100,20 @@ npx i18n-keys scan
 npx i18n-keys check
 ```
 
-`generate` checks English strings in `en.json` with LanguageTool (British
-English, `en-GB`) before translating, then uses MyMemory by default to fill
-missing non-English values. The translation service can be configured
-interactively at runtime, or by setting `MYMEMORY_EMAIL` / `TRANSLATE_EMAIL`
-for MyMemory, or `TRANSLATE_ENGINE`, `TRANSLATE_KEY`, and optionally
-`TRANSLATE_URL` to use a custom provider via the `translate` package. The
-legacy `check` and `sync` commands still use their configured API or `--mock`
-adapter; they are separate from the per-locale generator.
+`generate` uses MyMemory and LanguageTool over the network by default. The
+translation service can be configured interactively at runtime, or by setting
+`MYMEMORY_EMAIL` / `TRANSLATE_EMAIL` for MyMemory, or `TRANSLATE_ENGINE`,
+`TRANSLATE_KEY`, and optionally `TRANSLATE_URL` to use a custom provider via
+the `translate` package. The legacy `check` and `sync` commands still use their
+configured API or `--mock` adapter; they are separate from the per-locale
+generator.
 
 ## Key detection
 
 The scanner recognizes calls to `t`, `i18n.t`, and `i18next.t`, including `t`
-or `i18n` obtained from `useTranslation()`. It also extracts static string
-values from JSX `title`, `placeholder`, and `label` attributes. JSX text,
-`<Trans i18nKey>` values, and other JSX attributes are not scanned.
+or `i18n` obtained from `useTranslation()`. It also recognizes `Trans`
+components with an `i18nKey` attribute, visible JSX text, and common
+user-facing JSX attributes.
 
 Static string literals, string concatenations, arrays of keys, and both
 branches of a conditional expression are collected. Expressions that depend

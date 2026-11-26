@@ -73,3 +73,4 @@ new name publishes as a different npm package.
 Official npm documentation
 https://docs.npmjs.com/creating-and-publishing-unscoped-public-packages/
 https://docs.npmjs.com/cli/commands/npm-version/
+ks

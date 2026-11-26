@@ -21,7 +21,7 @@ import type { ApiAdapter, RegisterSummary, ResolvedConfig } from "./types.js";
 const HELP = `i18n-keys - find i18next keys in source and register missing ones
 
 Usage:
-  i18n-keys generate [options]   Scan UI text, review English (en-GB) in en.json, translate missing strings, and write locale files
+  i18n-keys generate [options]   Scan t() strings in ClientApp/src (or src), review new English strings in en.json (en-GB), auto-fix grammar, translate missing strings (each string across all locales), and write locale files
   i18n-keys scan  [options]     Discover keys. No network.
   i18n-keys check [options]     Scan + compare with the API. Never writes.
   i18n-keys sync  [options]     Scan + compare + register missing keys.
@@ -29,7 +29,6 @@ Usage:
 
 Options:
   --config <file>   Config path (default: i18n-keys.config.*)
-  --yes             (generate) Allow sending strings to translation and LanguageTool services
   --translations-dir <dir> Output directory for generated locale JSON files
   --since <ref>     Only scan files changed since a git ref (requires a git repo)
   --staged          Only scan git-staged files (requires a git repo)
@@ -49,7 +48,7 @@ Options:
 const TEMPLATE = `import { defineConfig } from "swd-translation-checker";
 
 export default defineConfig({
-  include: ["src/**/*.{js,jsx,ts,tsx}"],
+  include: ["ClientApp/src/**/*.{js,jsx,ts,tsx}"],
   exclude: ["**/*.test.*", "**/*.stories.*"],
   dynamicKeys: "warn", // "warn" | "error" | "ignore"
   translationsDir: "Translations",
@@ -179,7 +178,7 @@ async function main(): Promise<number> {
     }
     writeFileSync(target, TEMPLATE);
     console.log(
-      "Created i18n-keys.config.ts - adjust include/exclude and translationsDir as needed.",
+      "Created i18n-keys.config.ts - adjust include, exclude, and translationsDir as needed (scans ClientApp/src when present, otherwise src).",
     );
     return 0;
   }
@@ -225,25 +224,8 @@ async function main(): Promise<number> {
   if (command === "generate") {
     const keys = [...scan.keys.keys()];
     let skipTranslation = false;
-    if (keys.length && process.stdin.isTTY && !flags.yes) {
+    if (keys.length && process.stdin.isTTY) {
       ({ skipTranslation } = await configureTranslationSetup());
-    }
-
-    if (keys.length && !flags.yes) {
-      if (!process.stdin.isTTY) {
-        console.error(
-          "Generation sends extracted strings to external translation/grammar services. Re-run with --yes to allow this in a non-interactive terminal.",
-        );
-        return 2;
-      }
-      const consentMessage = skipTranslation
-        ? "\nSend English strings from en.json to LanguageTool for British English (en-GB) grammar review? Auto-translation is skipped for this run. (y/N) "
-        : "\nSend English strings to LanguageTool for British English (en-GB) grammar review, and new strings to translation services to generate locale files? (y/N) ";
-      const ok = await confirm(consentMessage);
-      if (!ok) {
-        console.log("Aborted.");
-        return 1;
-      }
     }
 
     const translationsDir =
@@ -251,29 +233,23 @@ async function main(): Promise<number> {
         ? flags["translations-dir"]
         : cfg.translationsDir;
     const { generateTranslationFiles } = await import("./generator.js");
-    let skipAllTranslations = false;
     const services = skipTranslation
       ? {
           translateText: async (text: string) => text,
+          recoverTranslation: async () => "abort" as const,
         }
       : process.stdin.isTTY
         ? {
             recoverTranslation: async (error: Error, key: string, locale: string) => {
-              if (skipAllTranslations) return "skip" as const;
               console.error(
                 `\nTranslation failed for ${locale} ${JSON.stringify(key)}: ${error.message}`,
               );
               const action = (
                 await ask(
-                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [k] skip all remaining (use English), [a]bort and save progress: ",
+                  "Choose: [r]etry, [c]onfigure service/key, [s]kip this string (use English), [a]bort: ",
                 )
               ).toLowerCase();
               if (action === "r" || action === "retry") return "retry" as const;
-              if (action === "k" || action === "skip-all" || action === "all") {
-                skipAllTranslations = true;
-                console.log("Skipping all remaining translation failures for this run (English placeholders will be used).");
-                return "skip" as const;
-              }
               if (action === "s" || action === "skip") return "skip" as const;
               if (action === "c" || action === "configure") {
                 await configureTranslationSetup();

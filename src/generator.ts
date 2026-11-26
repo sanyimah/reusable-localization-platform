@@ -218,9 +218,10 @@ async function reviewGrammar(
       clearProgress(progress);
       process.stderr.write("\n");
     }
-    throw new Error(
-      `Grammar check failed for ${locale} ${JSON.stringify(key)}: ${error instanceof Error ? error.message : String(error)}`,
+    console.warn(
+      `[${locale}] Skipping grammar check for ${JSON.stringify(key)}: ${error instanceof Error ? error.message : String(error)}`,
     );
+    return text;
   }
   const corrections: { offset: number; length: number; change: string }[] = [];
   for (const match of result.matches) {
@@ -367,7 +368,6 @@ async function writeLocaleFiles(
     await writeFile(file, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
   }
 }
-
 export async function generateTranslationFiles(
   keys: Iterable<string>,
   cwd: string,
@@ -409,6 +409,8 @@ export async function generateTranslationFiles(
   );
 
   const orderedKeys = [...new Set(keys)].sort((a, b) => a.localeCompare(b));
+  const existingEnglishKeys = new Set(Object.keys(english));
+  const newEnglishKeys = orderedKeys.filter((key) => !existingEnglishKeys.has(key));
   for (const key of orderedKeys) {
     if (!Object.prototype.hasOwnProperty.call(english, key)) {
       english[key] = key;
@@ -423,24 +425,15 @@ export async function generateTranslationFiles(
     }
   }
 
-  const progress = createProgress(orderedKeys.length + missingTranslations);
+  const progress = createProgress(newEnglishKeys.length + missingTranslations);
   if (progress.enabled) {
-    renderProgress(progress, orderedKeys.length > 0 ? "Reviewing" : "Translating");
+    renderProgress(progress, newEnglishKeys.length > 0 ? "Reviewing" : "Translating");
   }
 
-  let aborted = false;
-  let abortError: Error | undefined;
-
-  const saveProgress = async () => {
-    try {
-      await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
-    } catch {
-      // Best effort: preserve translation progress if possible.
-    }
-  };
+  await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
 
   try {
-    for (const key of orderedKeys) {
+    for (const key of newEnglishKeys) {
       renderProgress(progress, "Reviewing", "en", key);
       english[key] = await reviewGrammar(
         english[key],
@@ -451,11 +444,10 @@ export async function generateTranslationFiles(
         progress,
       );
       advanceProgress(progress, "Reviewing", "en", key);
-      await saveProgress();
+      await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
     }
 
     for (const key of orderedKeys) {
-      if (aborted) break;
       const sourceText = english[key];
       for (const locale of LOCALES) {
         const translations = targetFiles.get(locale)!;
@@ -491,17 +483,14 @@ export async function generateTranslationFiles(
                 );
                 break;
               }
-              aborted = true;
-              abortError = new Error(
+              throw new Error(
                 `Translation failed for ${locale.file} ${JSON.stringify(key)}: ${err.message}`,
               );
-              break;
             }
           }
-          if (aborted) break;
           translations[key] = translated!;
           advanceProgress(progress, "Translating", locale.file, key);
-          await saveProgress();
+          await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
         }
       }
     }
@@ -513,5 +502,4 @@ export async function generateTranslationFiles(
   }
 
   await writeLocaleFiles(outputDirectory, englishFile, english, targetFiles);
-  if (aborted && abortError) throw abortError;
 }

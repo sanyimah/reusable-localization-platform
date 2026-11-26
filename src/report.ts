@@ -33,7 +33,7 @@ export function printScan(scan: ScanResult, cfg: ResolvedConfig, verbose = false
     console.log(`\n  Dynamic keys that cannot be resolved statically [${label}]:`);
     console.log(list(scan.dynamic.map((d) => `${d.file}:${d.line}:${d.column}  ${d.snippet}  -> ${d.reason}`), verbose));
     console.log(
-      '    Fix: add `// i18n-keys: "Key A", "Key B"` nearby to declare the possible keys, or `// i18n-keys-ignore` to skip.',
+      '    Fix: use a static string literal in t(...), or add `// i18n-keys-ignore` on the same/previous line to skip.',
     );
   }
 }

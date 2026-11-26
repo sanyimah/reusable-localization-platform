@@ -1,6 +1,6 @@
 {
   "name": "swd-translation-checker",
-  "version": "0.1.7",
+  "version": "0.1.10",
   "description": "Scans client-side UI text and generates grammar-reviewed per-language JSON translation files.",
   "keywords": [
     "i18n",
@@ -45,12 +45,13 @@
     "build": "tsc -p tsconfig.json",
     "demo": "npm run build && node demo/test-api.mjs --sync",
     "demo:sync": "npm run build && cd demo && node ../dist/cli.js sync --apply --yes",
-    "test": "vitest run",
+    "test": "node scripts/test-node16.mjs run",
     "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
     "fast-glob": "^3.3.2",
+    "gramma": "^1.6.0",
     "jiti": "^2.4.2",
     "node-fetch": "^3.3.2",
     "translate": "^3.1.1"

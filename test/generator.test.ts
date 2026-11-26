@@ -5,6 +5,47 @@ import { describe, expect, it, vi } from "vitest";
 import { generateTranslationFiles } from "../src/generator.js";
 
 describe("translation file generation", () => {
+  it("creates locale files before checking grammar and preserves each completed translation on failure", async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-progress-"));
+    const translationsPath = path.join(cwd, "Translations");
+    const checkGrammar = vi.fn(async () => {
+      expect(JSON.parse(await readFile(path.join(translationsPath, "en.json"), "utf8"))).toEqual({
+        First: "First",
+        Second: "Second",
+      });
+      expect(JSON.parse(await readFile(path.join(translationsPath, "fr.json"), "utf8"))).toEqual({});
+      return { matches: [] };
+    });
+    const translateText = vi.fn(async (text: string, locale: string) => {
+      if (locale === "zh") {
+        expect(JSON.parse(await readFile(path.join(translationsPath, "fr.json"), "utf8"))).toEqual({
+          First: "fr:First",
+        });
+        throw new Error("translation service failed");
+      }
+      return `${locale}:${text}`;
+    });
+
+    try {
+      await expect(
+        generateTranslationFiles(["Second", "First"], cwd, "Translations", {
+          translateText,
+          checkGrammar,
+        }),
+      ).rejects.toThrow("Translation failed for zh \"First\": translation service failed");
+
+      expect(JSON.parse(await readFile(path.join(translationsPath, "fr.json"), "utf8"))).toEqual({
+        First: "fr:First",
+      });
+      expect(JSON.parse(await readFile(path.join(translationsPath, "en.json"), "utf8"))).toEqual({
+        First: "First",
+        Second: "Second",
+      });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("creates per-locale files, preserves existing translations, and only translates missing entries", async () => {
     const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-generate-"));
     const translationsPath = path.join(cwd, "Translations");
@@ -50,7 +91,7 @@ describe("translation file generation", () => {
         { translateText, checkGrammar },
       );
       expect(translateText).not.toHaveBeenCalled();
-      expect(checkGrammar).toHaveBeenCalledTimes(2);
+      expect(checkGrammar).not.toHaveBeenCalled();
     } finally {
       await rm(cwd, { recursive: true, force: true });
     }

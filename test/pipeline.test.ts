@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -151,43 +151,60 @@ describe("http adapter", () => {
   };
 
   it("scans source, compares with GET, and posts only missing keys on apply", async () => {
-    const url = "https://example.test";
-    const getUrl = url + "/api/GetTranslations/demo%2Fapp";
-    const postUrl = url + "/Generics/TranslationRequests";
-    const scan = await scanProject(resolveConfig({
-      appId: "demo/app",
-      include: ["demo/src/App.tsx"],
-    }, process.cwd()));
-    const discovered = [...scan.keys.keys()].sort();
-    expect(discovered.length).toBeGreaterThan(1);
-    const [existing, ...missing] = discovered;
-    const database = new Set([existing]);
-    const fetchMock = vi.fn(async (requestUrl: string, init: RequestInit) => {
-      if (init.method === "GET" && requestUrl === getUrl) {
-        return Response.json({ keys: [...database] });
-      }
-      if (init.method === "POST" && requestUrl === postUrl) {
-        const payload = JSON.parse(init.body as string);
-        expect(payload.appId).toBe("demo/app");
-        expect(payload.keys).toHaveLength(1);
-        payload.keys.forEach((key: string) => database.add(key));
-        return new Response(null, { status: 201 });
-      }
-      throw new Error(`Unexpected request: ${init.method} ${requestUrl}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const adapter = createHttpAdapter(baseCfg);
+    const cwd = await mkdtemp(path.join(os.tmpdir(), "i18n-keys-pipeline-"));
+    try {
+      await mkdir(path.join(cwd, "ClientApp", "src"), { recursive: true });
+      await writeFile(
+        path.join(cwd, "ClientApp", "src", "App.tsx"),
+        [
+          'import { useTranslation } from "react-i18next";',
+          "export function App() {",
+          "  const { t } = useTranslation();",
+          '  return <div><h1>{t("Customer Information")}</h1><button>{t("Save Changes")}</button><span>{t("Logout")}</span></div>;',
+          "}",
+          "",
+        ].join("\n"),
+      );
 
-    const diff = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
-    expect(diff).toEqual({ existing: [existing], missing });
-    const dryRun = await registerKeys(adapter, "demo/app", diff.missing, { apply: false });
-    expect(dryRun.planned).toEqual(missing);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+      const url = "https://example.test";
+      const getUrl = url + "/api/GetTranslations/demo%2Fapp";
+      const postUrl = url + "/Generics/TranslationRequests";
+      const scan = await scanProject(
+        resolveConfig({ appId: "demo/app" }, cwd),
+      );
+      const discovered = [...scan.keys.keys()].sort();
+      expect(discovered.length).toBeGreaterThan(1);
+      const [existing, ...missing] = discovered;
+      const database = new Set([existing]);
+      const fetchMock = vi.fn(async (requestUrl: string, init: RequestInit) => {
+        if (init.method === "GET" && requestUrl === getUrl) {
+          return Response.json({ keys: [...database] });
+        }
+        if (init.method === "POST" && requestUrl === postUrl) {
+          const payload = JSON.parse(init.body as string);
+          expect(payload.appId).toBe("demo/app");
+          expect(payload.keys).toHaveLength(1);
+          payload.keys.forEach((key: string) => database.add(key));
+          return new Response(null, { status: 201 });
+        }
+        throw new Error(`Unexpected request: ${init.method} ${requestUrl}`);
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const adapter = createHttpAdapter(baseCfg);
 
-    const applied = await registerKeys(adapter, "demo/app", diff.missing, { apply: true });
-    expect(applied.registered.sort()).toEqual(missing.sort());
-    const next = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
-    expect(next.missing).toEqual([]);
+      const diff = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
+      expect(diff).toEqual({ existing: [existing], missing });
+      const dryRun = await registerKeys(adapter, "demo/app", diff.missing, { apply: false });
+      expect(dryRun.planned).toEqual(missing);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      const applied = await registerKeys(adapter, "demo/app", diff.missing, { apply: true });
+      expect(applied.registered.sort()).toEqual(missing.sort());
+      const next = diffKeys(scan.keys.keys(), await adapter.fetchExisting("demo/app"));
+      expect(next.missing).toEqual([]);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 
   it("rejects an undefined POST body before sending the request", async () => {

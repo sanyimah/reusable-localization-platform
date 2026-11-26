@@ -63,10 +63,7 @@ function describeDynamic(n: ts.Expression): string {
   return `non-literal expression (${ts.SyntaxKind[n.kind]})`;
 }
 
-const DECLARE_RE = /i18n-keys:\s*(.+)$/;
-const QUOTED_RE = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
 const BRACE_PLACEHOLDER_RE = /\{[^{}]*\}/;
-const UI_TEXT_ATTRIBUTES = new Set(["label", "placeholder", "title"]);
 
 export function extractFromSource(
   file: string,
@@ -149,12 +146,6 @@ export function extractFromSource(
     keys.push({ key, file, via, ...posOf(node) });
   };
 
-  const addVisibleText = (key: string, node: ts.Node, via: string) => {
-    const normalized = key.replace(/\s+/g, " ").trim();
-    if (!normalized) return;
-    addKey(normalized, node, via);
-  };
-
   const addDynamic = (expr: ts.Expression, node: ts.Node) => {
     if (isIgnored(node)) return;
     dynamic.push({
@@ -183,21 +174,6 @@ export function extractFromSource(
 
   // Pass 2: collect calls.
   const visit = (node: ts.Node): void => {
-    if (ts.isJsxAttribute(node)) {
-      const name = node.name.getText(sf).toLowerCase();
-      if (UI_TEXT_ATTRIBUTES.has(name) && node.initializer) {
-        if (ts.isStringLiteral(node.initializer)) {
-          addVisibleText(node.initializer.text, node, `JSX ${name}`);
-        } else if (
-          ts.isJsxExpression(node.initializer) &&
-          node.initializer.expression
-        ) {
-          const value = staticString(node.initializer.expression);
-          if (value !== undefined) addVisibleText(value, node, `JSX ${name}`);
-        }
-      }
-    }
-
     if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const callee = node.expression;
       if (ts.isIdentifier(callee) && fnNames.has(callee.text)) {
@@ -216,29 +192,5 @@ export function extractFromSource(
   };
   visit(sf);
 
-  // Keys declared by hand for dynamic usages: // i18n-keys: "Active", "Inactive"
-  const declaredLines = new Set<number>();
-  lines.forEach((ln, i) => {
-    const m = ln.match(DECLARE_RE);
-    if (!m) return;
-    declaredLines.add(i + 1);
-    for (const q of m[1].matchAll(QUOTED_RE)) {
-      const key = q[2].replace(/\\(["'`\\])/g, "$1");
-      if (BRACE_PLACEHOLDER_RE.test(key)) continue;
-      keys.push({
-        key,
-        file,
-        line: i + 1,
-        column: 1,
-        via: "declared",
-      });
-    }
-  });
-
-  // A declare comment on the same line or the line above covers that dynamic call.
-  const unresolved = dynamic.filter(
-    (d) => !declaredLines.has(d.line) && !declaredLines.has(d.line - 1),
-  );
-
-  return { file, keys, dynamic: unresolved };
+  return { file, keys, dynamic };
 }

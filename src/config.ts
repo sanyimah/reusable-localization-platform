@@ -16,12 +16,19 @@ export function defineConfig(config: ToolkitConfig): ToolkitConfig {
   return config;
 }
 
+function defaultInclude(cwd: string): string[] {
+  if (existsSync(path.join(cwd, "ClientApp", "src"))) {
+    return ["ClientApp/src/**/*.{js,jsx,ts,tsx}"];
+  }
+  return ["src/**/*.{js,jsx,ts,tsx}"];
+}
+
 export function resolveConfig(raw: ToolkitConfig, cwd: string): ResolvedConfig {
   if (!raw) throw new Error("Config error: expected a configuration object.");
   return {
     ...raw,
     cwd,
-    include: raw.include ?? ["src/**/*.{js,jsx,ts,tsx}"],
+    include: raw.include ?? defaultInclude(cwd),
     exclude: raw.exclude ?? [],
     functions: raw.functions ?? ["t"],
     hooks: raw.hooks ?? ["useTranslation"],
